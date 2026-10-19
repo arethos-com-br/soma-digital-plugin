@@ -19,6 +19,6 @@ Equivalentes na busca do CapCut (medido em 19/10/2026; só nomes; a lista de tra
 | Glitch | `sound_effect` "Glitch_1" | |
 | Swoosh/woosh | sem resultado para "swoosh", "whoosh"; só "Swish" | |
 | Typewriting, typing, shun, wind noise fighting | sem equivalente claro | typing não foi buscado; "wind" só trouxe "Windy…" e "Window smash" |
-| Transições (zoom in/out, fade, flash, reflexo de luz, blur, combinar, flash com falha) | `transition`: 20 itens curados, títulos em chinês, sem nome "zoom", "fade" ou "flash". Mais próximos pelo nome: 模糊横移 (blur lateral), 放大镜 (lupa), 星光叠化 (fusão), 曝光拉丝 e 长曝光 (exposição), 快门 II (obturador) | escolha pelo efeito no editor, não pelo nome; diga a escolha na entrega |
+| Transições (zoom in/out, fade, flash, reflexo de luz, blur, combinar, flash com falha) | `transition`: 20 itens curados, títulos em chinês, sem nome "zoom", "fade" ou "flash". Mais próximos pelo nome: 模糊横移 (blur lateral), 放大镜 (lupa), 星光叠化 (fusão), 曝光拉丝 e 长曝光 (exposição), 快门 II (obturador) | escolha pelo efeito no editor, não pelo nome; diga a escolha na entrega. Numa rodada o agente usou 时光穿梭 e 回忆拉屏 II como "zoom in/out" e 模糊横移 como blur, sem conferir no editor |
 
 Sem equivalente claro: deixe de fora e avise, como diz o fluxo.
