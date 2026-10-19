@@ -22,7 +22,21 @@ Um job tem um único modo (ver [modos](references/modos.md)).
 
 1. **Entender.** Use a ficha do cliente e o pedido levantados por `iniciar-video`. Se o pedido chegou direto, sem ficha, rode `iniciar-video` primeiro. Procure os brutos também nas subpastas.
 2. **Planejar.** Examine os brutos e as referências; registre só o que observou (nome de arquivo não descreve o vídeo). Consulte o [repertório](references/repertorio.md) e a [biblioteca](references/biblioteca.md); pode propor gancho e efeitos que não foram pedidos, marcados como sugestão. Se o cliente tem nicho específico, consulte também a skill `buscar-tendencias` para anúncios do nicho. Mostre um plano curto: plataforma, proporção e duração; trechos escolhidos e o que foi examinado; timeline com gancho e efeitos; música e texto; áudio original só nos clipes em que você verificou que importa; uma única dúvida, se impedir a edição. Não invente texto, CTA ou logo. A aprovação do plano cobre o envio dos brutos ao CapCut.
-3. **Editar.** Monte o draft você mesmo, seguindo o plano aprovado, com as habilidades de pós-edição do plugin do CapCut: envie os brutos (`capcut-upload`), crie o draft a partir deles e aplique clipe por clipe, com os trechos e tempos do plano (`capcut-stdraft-builder`: vídeo, música, efeitos sonoros, efeitos de vídeo, transições, filtros e texto). Busque a música pela pesquisa de música de fundo do CapCut. Salve e abra pelo fluxo `web-collaborative-editing`, mantendo uma versão recuperável. Áudio original: desligado por padrão. Só fica no clipe em que você verificou fala ou som que importe (por exemplo, o cliente falando ou o som do produto); o plano diz quais.
-4. **Verificar e entregar.** Releia ou reabra o draft quando o editor permitir e confira mídia presente, ordem e duração, proporção, texto e áudio. Entregue o link do draft e um resumo curto do que foi aplicado; prévia só se foi de fato gerada.
+3. **Editar.** Monte o draft você mesmo, seguindo o plano aprovado, com as habilidades de pós-edição do plugin do CapCut: envie os brutos (`capcut-upload`), crie o draft a partir deles e aplique clipe por clipe, com os trechos e tempos do plano (`capcut-stdraft-builder`). Salve e abra pelo fluxo `web-collaborative-editing`, mantendo uma versão recuperável. Áudio original: desligado por padrão. Só fica no clipe em que você verificou fala ou som que importe (por exemplo, o cliente falando ou o som do produto); o plano diz quais.
+
+   Cada camada do plano exige a sua busca no CapCut (`search_capcut_material`) e a sua aplicação. Uma camada do plano que ficou sem busca não foi feita.
+
+   | Camada | Busca (`type`) | Aplicação |
+   |---|---|---|
+   | Música | `music`, pesquisa de música de fundo | áudio no draft |
+   | Transição | `transition`: lista fixa, ignora o `prompt`; peça `top_n` 20 e escolha pelo nome | no clipe anterior; os dois no mesmo nível, em sequência, sem vão; duração menor que a dos dois clipes |
+   | Efeito de vídeo | `video_effect`: busca por texto | trecho com início e duração |
+   | Filtro | `filter`: lista fixa | trecho ou clipe |
+   | Efeito sonoro | `sound_effect`: busca por texto | áudio curto no tempo do corte |
+   | Texto | `font`, `text_effect` | só o texto que o plano traz |
+
+   Item do [repertório](references/repertorio.md) sem equivalente claro na busca: não troque por outro em silêncio; deixe de fora e diga na entrega. Batida: ver [modos](references/modos.md).
+
+4. **Verificar e entregar.** Releia ou reabra o draft quando o editor permitir e confira mídia presente, ordem e duração, proporção, texto e áudio, e compare com o plano a contagem de transições, efeitos, filtros e efeitos sonoros do draft relido: tudo o que o plano trouxe e não está lá vai nomeado na entrega. Entregue o link do draft e um resumo curto do que foi aplicado; prévia só se foi de fato gerada.
 
 Concluído quando o draft foi conferido e quem pediu recebeu o link. Ajustes, exportação e publicação são decisão de quem usa.
