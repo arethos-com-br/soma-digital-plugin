@@ -90,7 +90,13 @@ Requisitos: app desktop do ChatGPT, plugin oficial do [CapCut](https://www.capcu
 codex plugin marketplace add arethos-tech/soma-digital-plugin
 ```
 
-Reinicie o app, abra o diretório de plugins, escolha o marketplace "Soma Digital" e instale.
+Depois instale o plugin:
+
+```bash
+codex plugin add soma-digital@soma-digital
+```
+
+Ou, pelo app: reinicie, abra o diretório de plugins, escolha o marketplace "Soma Digital" e instale. Verificado pela CLI no Windows em 19/10/2026; o caminho pela interface do app ainda não foi testado.
 
 ## Usar
 
