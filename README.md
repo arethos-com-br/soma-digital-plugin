@@ -112,6 +112,7 @@ Depois, o CapCut (hoje o plugin oficial dele é só para Codex; não está neste
 1. Adicione o servidor e faça o login pelo `/mcp`: `claude mcp add --transport http capcut_creation https://www.capcut.com/api/external_mcp`.
 2. Instale localmente as skills `capcut-upload`, `capcut-stdraft-builder` e `web-collaborative-editing` do pacote oficial (veja a [página do CapCut × Codex](https://www.capcut.com/tools/capcut-x-codex)).
 3. Os brutos precisam estar em disco (Google Drive para desktop); o enviador do CapCut não lê direto do conector do Drive.
+4. `ffmpeg` no PATH, para examinar quadros e áudio dos brutos (Windows: `winget install Gyan.FFmpeg`).
 
 Detalhes do que muda por ambiente: `plugin/skills/montar-video/references/ambientes.md`. Status: instalação e skills validadas pelo `claude plugin validate`; login no CapCut e montagem pelo Claude ainda não testados de ponta a ponta.
 

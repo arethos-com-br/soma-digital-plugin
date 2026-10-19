@@ -12,7 +12,7 @@ Regras fixas:
 - Respeitar o que já foi alterado no CapCut por quem usa: não sobrescrever; em dúvida, perguntar.
 - Não exportar o vídeo final a menos que peçam; entregar o draft editável e o link.
 - Não usar o AI Lab do CapCut (AI rough cut, ferramentas com `capcut_ailab` no nome), nem para o corte inicial: ele refaz o plano e ignora o nosso.
-- Música: a que indicarem ou uma em alta (ver `buscar-tendencias`). Sem checagem de licença.
+- Música: a que indicarem ou uma em alta (ver `buscar-tendencias`). Não cheque nem mencione licença ou direitos: o uso é como no Instagram.
 
 Precisa de acesso ao Google Drive e ao CapCut na sessão; se faltar um, avise e pare. Os nomes das ferramentas e o que muda em cada ambiente (Codex, Claude) estão em [ambientes](references/ambientes.md).
 

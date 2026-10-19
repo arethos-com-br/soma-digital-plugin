@@ -21,3 +21,4 @@ O plugin oficial do CapCut traz tudo isso e a autorização. Siga as skills dele
 - **Ticket de upload:** o enviador lê o ticket do stdin, sem TTY: `printf '%s' "<ticket>" | node <skill>/scripts/capcut-upload.mjs --files '[...]' --upload-ticket-stdin --json`. Nunca em argumento nem em log.
 - **Login:** só pelo `/mcp`. Ignore as instruções de `mcp-auth` e de `codex mcp login`.
 - **Link do editor:** entregue o link ao usuário; a verificação visual depende de navegador disponível, senão diga que não foi feita.
+- **Examinar vídeo:** precisa de `ffmpeg`/`ffprobe` no PATH (no Windows: `winget install Gyan.FFmpeg`). Medido: uma folha de contato por clipe (`ffmpeg -i clip.mp4 -vf "fps=1/2,scale=240:-1,tile=5x2" folha.jpg`), lida como imagem, basta para identificar produto, cenário e logotipos; `-af volumedetect` dá o nível do áudio. Não há transcrição local: sem ela, diga que a fala não foi verificada.
