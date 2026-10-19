@@ -1,0 +1,12 @@
+{
+  "name": "soma-digital",
+  "interface": { "displayName": "Soma Digital" },
+  "plugins": [
+    {
+      "name": "soma-digital",
+      "source": { "source": "local", "path": "./plugin" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Creativity"
+    }
+  ]
+}
