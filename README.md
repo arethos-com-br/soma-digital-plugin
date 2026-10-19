@@ -35,13 +35,10 @@ Abra uma conversa nova e escreva como falaria com uma pessoa, por exemplo:
 
 ## Conteúdo
 
-| Pasta | O quê |
+| Caminho | O quê |
 |---|---|
-| `plugin/skills/iniciar-job` | Conferência de conectores, pedido e modo |
-| `plugin/skills/planejar-edicao` | Plano antes de editar |
-| `plugin/skills/editar-e-verificar` | Draft no CapCut e conferência |
-| `plugin/skills/repertorio` | Efeitos e transições da Soma |
-| `plugin/skills/biblioteca` | Templates e ganchos |
-| `plugin/skills/trends` | Rotina de tendências |
+| `plugin/skills/editar-video` | Fluxo completo: entender, planejar, editar, verificar |
+| `plugin/skills/editar-video/references` | Modos de entrega, repertório de efeitos e biblioteca de templates e ganchos |
+| `plugin/skills/trends` | Tendências, em separado porque se pede sozinha |
 
 Não há vídeos, links de Drive nem dados de cliente neste repositório.

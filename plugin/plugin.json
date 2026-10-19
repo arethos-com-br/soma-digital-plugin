@@ -7,7 +7,7 @@
   "keywords": ["video-editing", "capcut", "google-drive", "social-video"],
   "extensions": {
     "com.openai": {
-      "onboardingSkill": "./skills/iniciar-job/SKILL.md",
+      "onboardingSkill": "./skills/editar-video/SKILL.md",
       "interface": {
         "displayName": "Soma Digital",
         "shortDescription": "Edite vídeos sociais a partir dos brutos no Drive",
