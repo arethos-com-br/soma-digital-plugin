@@ -52,7 +52,7 @@ A skill `trends` também funciona sozinha: pedido de tendências, consulta das f
 | 1. Novo job (`novo-job`) | Conversa guiada em 3 blocos: cliente (segmento, subnicho, oferta, público, tom), pedido (pastas, plataforma, duração, modo, música) e conferência dos brutos e das referências achados no Drive, inclusive em subpastas | o que quem usa disse, Drive | ficha do cliente e pedido confirmados |
 | 2. Planejar (`editar-video`) | Examina brutos e referências, registra só o que observou, consulta o conhecimento e pode sugerir gancho e efeitos | Drive, `references/`, `trends` | plano curto: formato, trechos, timeline, música, texto e, no máximo, uma dúvida |
 | Aprovação | Quem usa aprova ou pede ajuste; a aprovação cobre o envio dos brutos ao CapCut | plano | sinal para editar |
-| 3. Editar | Cria uma versão recuperável do draft e aplica só o plano aprovado | plano | draft no CapCut |
+| 3. Editar | Monta o draft clipe por clipe, seguindo o plano aprovado, com as funções de pós-edição do plugin do CapCut (sem AI Lab), e mantém uma versão recuperável | plano | draft no CapCut |
 | 4. Verificar | Relê o draft e confere mídia, ordem, duração, proporção, texto e áudio | draft | link e resumo; prévia só se foi gerada |
 | Revisão humana | Ajustes, exportação e publicação ficam com quem usa | draft | decisão |
 
@@ -79,6 +79,7 @@ Cada pedido usa um único modo.
 - Nunca publica. Preserva os originais do Drive.
 - Usa só os brutos do pedido: sem banco de imagens, mídia gerada ou imagem genérica.
 - Não inventa texto, chamada para ação nem logo; não exporta o vídeo final sem pedido.
+- Não usa o AI Lab do CapCut: o corte segue o plano aprovado, não um plano refeito pelo CapCut.
 - Respeita o que já foi alterado no CapCut por quem usa.
 
 ## Instalar
