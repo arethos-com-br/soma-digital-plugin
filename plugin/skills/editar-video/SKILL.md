@@ -9,7 +9,7 @@ Regras fixas:
 
 - Nunca publicar. Preservar os originais do Drive.
 - Usar só os brutos do job. Sem stock, mídia gerada ou imagem genérica.
-- Respeitar o que a usuária já mexeu no CapCut: não sobrescrever; em dúvida, perguntar.
+- Respeitar o que já foi alterado no CapCut por quem usa: não sobrescrever; em dúvida, perguntar.
 - Não exportar o vídeo final a menos que peçam; entregar o draft editável e o link.
 - Música: a que indicarem ou uma em alta (ver `trends`). Sem checagem de licença.
 
@@ -24,4 +24,4 @@ Um job tem um único modo (ver [modos](references/modos.md)).
 3. **Editar.** Crie uma versão recuperável do draft e aplique só o plano aprovado. O áudio original dos brutos só fica se o plano disser.
 4. **Verificar e entregar.** Releia ou reabra o draft quando o editor permitir e confira mídia presente, ordem e duração, proporção, texto e áudio. Entregue o link do draft e um resumo curto do que foi aplicado; prévia só se foi de fato gerada.
 
-Concluído quando o draft foi conferido e a usuária recebeu o link. Ajustes, exportação e publicação são decisão dela.
+Concluído quando o draft foi conferido e quem pediu recebeu o link. Ajustes, exportação e publicação são decisão de quem usa.

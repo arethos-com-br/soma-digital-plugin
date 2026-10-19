@@ -1,16 +1,85 @@
 # Soma Digital — plugin de edição
 
-Plugin para o ChatGPT/Codex desktop que ajuda a Soma Digital a editar vídeos sociais (Reels, vertical 9:16): a usuária coloca os brutos no Drive, descreve o job e recebe um draft editável no CapCut. Feito pela [Arethos](https://github.com/arethos-tech).
+Plugin para o ChatGPT/Codex desktop que ajuda a equipe da Soma Digital a editar vídeos sociais (Reels, vertical 9:16). Quem usa coloca os brutos numa pasta do Drive, descreve o pedido em linguagem natural e recebe um **draft editável no CapCut**, pronto para revisar. Feito pela [Arethos](https://github.com/arethos-tech).
 
-Status: MVP em validação. A instalação e o fluxo abaixo ainda estão sendo testados do ponto de vista de quem vai usar.
+Status: MVP em validação. O fluxo e a instalação abaixo ainda estão sendo testados do ponto de vista de quem vai usar.
 
-## O que faz
+## Fluxo de uso
 
-- Edita os brutos reais de uma pasta do Drive; não gera vídeo do zero.
-- Dois modos, um por job: `corte-musical-produto` (clipes cortados pelo ritmo da música) e `template-tela-dividida` (dois vídeos com duração e enquadramento independentes).
-- Aplica o repertório de efeitos e transições da Soma e uma biblioteca de templates e ganchos.
-- Propõe edições e aponta o que está em alta (templates, áudios, formatos).
-- Nunca publica: entrega o link de um draft editável e a Soma revisa no CapCut.
+```mermaid
+flowchart TD
+    P["Pedido em linguagem natural<br/>pasta do Drive, plataforma, duração, modo, referência"] --> V{"Google Drive e CapCut<br/>habilitados?"}
+    V -- "não" --> X["Avisa o que falta e para"]
+    V -- "sim" --> E["1. Entender<br/>pergunta só o que muda a entrega"]
+    E --> PL["2. Planejar<br/>examina os brutos e as referências"]
+    K["Conhecimento<br/>modos, repertório, biblioteca, trends"] -.-> PL
+    PL --> PLANO["Plano curto<br/>trechos, timeline, gancho, efeitos, música, texto"]
+    PLANO --> AP{"Plano aprovado?"}
+    AP -- "ajustar" --> PL
+    AP -- "sim" --> ED["3. Editar<br/>versão recuperável do draft no CapCut"]
+    ED --> VF["4. Verificar<br/>mídia, ordem, duração, proporção, texto, áudio"]
+    VF --> EN["Entrega<br/>link do draft editável e resumo do que foi aplicado"]
+    EN --> RH["Revisão humana no CapCut"]
+    RH -- "ajustes" --> ED
+    RH -- "aprovado" --> FIM["Exportação e publicação<br/>fora do plugin"]
+```
+
+Quem faz o quê em cada conversa:
+
+```mermaid
+sequenceDiagram
+    actor U as Equipe
+    participant C as ChatGPT com o plugin
+    participant D as Google Drive
+    participant K as CapCut
+    U->>C: pedido (pasta, plataforma, duração, modo)
+    C->>D: lê os brutos e as referências
+    C-->>U: plano para aprovar
+    U->>C: aprova
+    C->>K: envia os brutos do plano e cria o draft
+    C->>K: relê o draft e confere
+    C-->>U: link do draft e resumo
+    U->>K: revisa, ajusta, exporta
+```
+
+A skill `trends` também funciona sozinha: pedido de tendências, consulta das fontes, até 3 sugestões com fonte, data e aplicação ao job.
+
+## Etapas em detalhe
+
+| Etapa | O que faz | Lê | Produz |
+|---|---|---|---|
+| Conferir | Verifica se Google Drive e CapCut estão habilitados | conectores da conversa | aviso e parada se faltar um |
+| 1. Entender | Aproveita o que já foi dito e pergunta só o que muda a entrega | pedido | pasta ou arquivos, plataforma, duração, referência, modo, música |
+| 2. Planejar | Examina brutos e referências, registra só o que observou, consulta o conhecimento e pode sugerir gancho e efeitos | Drive, `references/`, `trends` | plano curto: formato, trechos, timeline, música, texto e, no máximo, uma dúvida |
+| Aprovação | Quem usa aprova ou pede ajuste; a aprovação cobre o envio dos brutos ao CapCut | plano | sinal para editar |
+| 3. Editar | Cria uma versão recuperável do draft e aplica só o plano aprovado | plano | draft no CapCut |
+| 4. Verificar | Relê o draft e confere mídia, ordem, duração, proporção, texto e áudio | draft | link e resumo; prévia só se foi gerada |
+| Revisão humana | Ajustes, exportação e publicação ficam com quem usa | draft | decisão |
+
+## Modos de entrega
+
+Cada pedido usa um único modo.
+
+| Modo | Resultado | Cuidados |
+|---|---|---|
+| `corte-musical-produto` | Sequência de clipes reais cortada pelo ritmo da música | marcar as batidas antes de cortar; tratar o áudio original dos brutos; gancho nos primeiros segundos |
+| `template-tela-dividida` | Dois espaços de vídeo, cada um com duração e enquadramento independentes | ajustes de um lado não alteram o outro; definir o que ocorre quando um clipe acaba antes |
+
+## Conhecimento que o plugin consulta
+
+| Arquivo | Conteúdo | Estado |
+|---|---|---|
+| `references/modos.md` | os dois modos e seus cuidados | pronto |
+| `references/repertorio.md` | transições, efeitos visuais e efeitos sonoros usados | pronto; falta ligar cada item ao efeito equivalente no CapCut |
+| `references/biblioteca.md` | templates, ganchos e estruturas com evidência | vazio; só entra o que for testado |
+| skill `trends` | o que está em alta e, para clientes de nicho específico, anúncios do nicho | pronto |
+
+## Regras fixas
+
+- Nunca publica. Preserva os originais do Drive.
+- Usa só os brutos do pedido: sem banco de imagens, mídia gerada ou imagem genérica.
+- Não inventa texto, chamada para ação nem logo; não exporta o vídeo final sem pedido.
+- Respeita o que já foi alterado no CapCut por quem usa.
 
 ## Instalar
 
@@ -24,21 +93,17 @@ Reinicie o app, abra o diretório de plugins, escolha o marketplace "Soma Digita
 
 ## Usar
 
-Abra uma conversa nova e escreva como falaria com uma pessoa, por exemplo:
+Abra uma conversa nova e escreva como falaria com uma pessoa:
 
 > Quero um Reels de 15 segundos com os brutos da pasta Agência. É um corte musical de produto para Instagram. Usa as referências da pasta Referências e me mostra o plano antes de editar.
 
-1. O plugin lê o pedido e pergunta só o que faltar.
-2. Examina os brutos e as referências e mostra um plano curto.
-3. Com a sua aprovação, cria o draft no CapCut e devolve o link.
-4. Você revisa e ajusta no CapCut.
+## Estrutura do repositório
 
-## Conteúdo
+```
+.agents/plugins/marketplace.json     catálogo para instalar pelo Codex
+plugin/plugin.json                   manifesto
+plugin/skills/editar-video/          fluxo completo (SKILL.md) e references/
+plugin/skills/trends/                tendências e anúncios do nicho
+```
 
-| Caminho | O quê |
-|---|---|
-| `plugin/skills/editar-video` | Fluxo completo: entender, planejar, editar, verificar |
-| `plugin/skills/editar-video/references` | Modos de entrega, repertório de efeitos e biblioteca de templates e ganchos |
-| `plugin/skills/trends` | Tendências, em separado porque se pede sozinha |
-
-Não há vídeos, links de Drive nem dados de cliente neste repositório.
+Não há vídeos, links de Drive nem dados pessoais neste repositório.
