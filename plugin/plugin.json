@@ -16,7 +16,7 @@
         "category": "Creativity",
         "capabilities": ["Read", "Write"],
         "defaultPrompt": [
-          "Quero um Reels de 15 segundos com os brutos desta pasta do Drive, em corte musical de produto. Me mostra o plano antes de editar.",
+          "Cliente: [segmento e subnicho, público, tom]. Brutos na pasta [pasta] do Drive. Quero um Reels de 15 segundos, corte musical de produto. Me mostra o plano antes de editar.",
           "Quero uma tela dividida com dois destes vídeos. Me mostra o plano antes de editar.",
           "O que está em alta esta semana que combina com este job?"
         ],

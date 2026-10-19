@@ -93,9 +93,11 @@ Reinicie o app, abra o diretório de plugins, escolha o marketplace "Soma Digita
 
 ## Usar
 
-Abra uma conversa nova e escreva como falaria com uma pessoa:
+Quem usa só descreve o cliente, grava e coloca os vídeos no Drive; o resto fica com o plugin. Abra uma conversa nova e escreva como falaria com uma pessoa:
 
-> Quero um Reels de 15 segundos com os brutos da pasta Agência. É um corte musical de produto para Instagram. Usa as referências da pasta Referências e me mostra o plano antes de editar.
+> Cliente: loja de moda feminina, público jovem, tom descontraído; quero destacar a coleção nova. Os brutos estão na pasta Agência do Drive e as referências na pasta Ref. Quero um Reels de 15 segundos para Instagram, corte musical de produto. Me mostra o plano antes de editar.
+
+O plugin acha os brutos (inclusive em subpastas), consulta referências, trends e anúncios do nicho, e devolve um plano para aprovar.
 
 ## Estrutura do repositório
 
