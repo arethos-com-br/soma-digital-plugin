@@ -114,7 +114,7 @@ Depois, o CapCut (hoje o plugin oficial dele é só para Codex; não está neste
 3. Os brutos precisam estar em disco (Google Drive para desktop); o enviador do CapCut não lê direto do conector do Drive.
 4. `ffmpeg` no PATH, para examinar quadros e áudio dos brutos (Windows: `winget install Gyan.FFmpeg`).
 
-Detalhes do que muda por ambiente: `plugin/skills/montar-video/references/ambientes.md`. Status: instalação e skills validadas pelo `claude plugin validate`; login no CapCut e montagem pelo Claude ainda não testados de ponta a ponta.
+Detalhes do que muda por ambiente: `plugin/skills/montar-video/references/ambientes.md`. Status: testado de ponta a ponta no Claude Code (Windows, 19/10/2026): início guiado, plano, upload, draft no CapCut e link. Ainda sem transições, efeitos nem corte na batida no draft.
 
 ## Usar
 
