@@ -1,0 +1,15 @@
+{
+  "name": "soma-digital",
+  "description": "Plugin de edição de vídeos sociais da Soma Digital",
+  "owner": {
+    "name": "Arethos"
+  },
+  "plugins": [
+    {
+      "name": "soma-digital",
+      "source": "./plugin",
+      "description": "Edição de vídeos sociais para a Soma Digital: planeja, edita os brutos do Drive no CapCut, propõe edições e acompanha tendências.",
+      "category": "Creativity"
+    }
+  ]
+}

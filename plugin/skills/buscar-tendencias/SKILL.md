@@ -1,9 +1,9 @@
 ---
-name: trends
+name: buscar-tendencias
 description: Aponta o que está em alta (templates do CapCut, áudios, formatos) e como aplicar a um job. Use quando pedirem tendências ou ideias do que está funcionando.
 ---
 
-# Trends
+# Buscar tendências
 
 Registre sempre a data da coleta; trend envelhece em dias. Se o job é de um cliente com nicho ou subnicho específico, procure também anúncios desse nicho e subnicho (Top Ads do TikTok Creative Center por setor; Meta Ad Library, pública) e use-os como referência de gancho, formato e estilo.
 
