@@ -1,24 +1,33 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "soma-digital",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Edição de vídeos sociais para a Soma Digital: planeja, edita os brutos do Drive no CapCut, propõe edições e acompanha trends.",
-  "author": { "name": "Arethos" },
-  "keywords": ["video-editing", "capcut", "google-drive", "social-video"],
+  "author": {
+    "name": "Arethos"
+  },
+  "keywords": [
+    "video-editing",
+    "capcut",
+    "google-drive",
+    "social-video"
+  ],
   "extensions": {
     "com.openai": {
-      "onboardingSkill": "./skills/editar-video/SKILL.md",
+      "onboardingSkill": "./skills/novo-job/SKILL.md",
       "interface": {
         "displayName": "Soma Digital",
         "shortDescription": "Edite vídeos sociais a partir dos brutos no Drive",
         "longDescription": "Transforma os brutos de uma pasta do Drive em um plano aprovado e em um draft editável no CapCut, usando o repertório e os templates da Soma Digital.",
         "developerName": "Arethos",
         "category": "Creativity",
-        "capabilities": ["Read", "Write"],
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
         "defaultPrompt": [
-          "Cliente: [segmento e subnicho, público, tom]. Brutos na pasta [pasta] do Drive. Quero um Reels de 15 segundos, corte musical de produto. Me mostra o plano antes de editar.",
-          "Quero uma tela dividida com dois destes vídeos. Me mostra o plano antes de editar.",
-          "O que está em alta esta semana que combina com este job?"
+          "Quero criar um vídeo novo para um cliente.",
+          "O que está em alta esta semana que combina com um cliente do meu nicho?"
         ],
         "brandColor": "#111827"
       }

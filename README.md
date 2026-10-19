@@ -8,9 +8,9 @@ Status: MVP em validação. O fluxo e a instalação abaixo ainda estão sendo t
 
 ```mermaid
 flowchart TD
-    P["Pedido em linguagem natural<br/>pasta do Drive, plataforma, duração, modo, referência"] --> V{"Google Drive e CapCut<br/>habilitados?"}
+    P["Quero criar um vídeo novo"] --> V{"Google Drive e CapCut<br/>habilitados?"}
     V -- "não" --> X["Avisa o que falta e para"]
-    V -- "sim" --> E["1. Entender<br/>pergunta só o que muda a entrega"]
+    V -- "sim" --> E["1. Novo job, guiado<br/>cliente, pedido, pastas do Drive"]
     E --> PL["2. Planejar<br/>examina os brutos e as referências"]
     K["Conhecimento<br/>modos, repertório, biblioteca, trends"] -.-> PL
     PL --> PLANO["Plano curto<br/>trechos, timeline, gancho, efeitos, música, texto"]
@@ -49,8 +49,8 @@ A skill `trends` também funciona sozinha: pedido de tendências, consulta das f
 | Etapa | O que faz | Lê | Produz |
 |---|---|---|---|
 | Conferir | Verifica se Google Drive e CapCut estão habilitados | conectores da conversa | aviso e parada se faltar um |
-| 1. Entender | Aproveita o que já foi dito e pergunta só o que muda a entrega | pedido | pasta ou arquivos, plataforma, duração, referência, modo, música |
-| 2. Planejar | Examina brutos e referências, registra só o que observou, consulta o conhecimento e pode sugerir gancho e efeitos | Drive, `references/`, `trends` | plano curto: formato, trechos, timeline, música, texto e, no máximo, uma dúvida |
+| 1. Novo job (`novo-job`) | Conversa guiada em 3 blocos: cliente (segmento, subnicho, oferta, público, tom), pedido (pastas, plataforma, duração, modo, música) e conferência dos brutos e das referências achados no Drive, inclusive em subpastas | o que quem usa disse, Drive | ficha do cliente e pedido confirmados |
+| 2. Planejar (`editar-video`) | Examina brutos e referências, registra só o que observou, consulta o conhecimento e pode sugerir gancho e efeitos | Drive, `references/`, `trends` | plano curto: formato, trechos, timeline, música, texto e, no máximo, uma dúvida |
 | Aprovação | Quem usa aprova ou pede ajuste; a aprovação cobre o envio dos brutos ao CapCut | plano | sinal para editar |
 | 3. Editar | Cria uma versão recuperável do draft e aplica só o plano aprovado | plano | draft no CapCut |
 | 4. Verificar | Relê o draft e confere mídia, ordem, duração, proporção, texto e áudio | draft | link e resumo; prévia só se foi gerada |
@@ -93,18 +93,21 @@ Reinicie o app, abra o diretório de plugins, escolha o marketplace "Soma Digita
 
 ## Usar
 
-Quem usa só descreve o cliente, grava e coloca os vídeos no Drive; o resto fica com o plugin. Abra uma conversa nova e escreva como falaria com uma pessoa:
+Quem usa só grava e coloca os vídeos no Drive; o plugin guia o resto. Abra uma conversa nova e diga o que quer, por exemplo:
 
-> Cliente: loja de moda feminina, público jovem, tom descontraído; quero destacar a coleção nova. Os brutos estão na pasta Agência do Drive e as referências na pasta Ref. Quero um Reels de 15 segundos para Instagram, corte musical de produto. Me mostra o plano antes de editar.
+> Quero criar um vídeo novo para um cliente.
 
-O plugin acha os brutos (inclusive em subpastas), consulta referências, trends e anúncios do nicho, e devolve um plano para aprovar.
+A skill `novo-job` pergunta, em até 3 blocos curtos, sobre o cliente, o pedido e as pastas, confere o que achou no Drive e segue para o plano. Quem já sabe o que quer pode mandar tudo de uma vez:
+
+> Cliente: loja de moda feminina, público jovem, tom descontraído; destaque: coleção nova. Brutos na pasta Agência e referências na pasta Ref. Reels de 15 segundos para Instagram, corte musical de produto. Me mostra o plano antes de editar.
 
 ## Estrutura do repositório
 
 ```
 .agents/plugins/marketplace.json     catálogo para instalar pelo Codex
 plugin/plugin.json                   manifesto
-plugin/skills/editar-video/          fluxo completo (SKILL.md) e references/
+plugin/skills/novo-job/              início guiado (cliente, pedido, pastas)
+plugin/skills/editar-video/          plano, edição e verificação (SKILL.md) e references/
 plugin/skills/trends/                tendências e anúncios do nicho
 ```
 
