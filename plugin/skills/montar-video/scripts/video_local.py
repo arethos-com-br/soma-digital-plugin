@@ -255,9 +255,105 @@ def _analise(arquivo):
     return _ANALISE[arquivo]
 
 
-def _melhor_trecho(arquivo, dur, ocupados=()):
+_RASTRO = {}
+RW = 54  # largura da miniatura do rastro; ~5 mil pontos por quadro bastam para achar o produto
+
+
+def _rastro(arquivo):
+    """Onde está o produto em cada quadro (5 qps): centro e largura em fração do quadro, ou None.
+    Produto = o que destoa do fundo (fundo medido por linha, porque chão, parede e mesa têm gradiente),
+    tirando tom de pele (a mão que segura não é o assunto). Mais de 30% do quadro destoando é cena
+    (pessoa, loja): não há produto a enquadrar."""
+    if arquivo not in _RASTRO:
+        nums = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                               "stream=width,height:stream_side_data=rotation", "-of", "csv=p=0", arquivo],
+                              capture_output=True, text=True, check=True).stdout.replace("\n", ",").split(",")
+        nums = [int(float(x)) for x in nums if x.strip()]
+        sw, sh = nums[:2]
+        if any(abs(r) in (90, 270) for r in nums[2:]):  # o ffmpeg gira o quadro; as medidas giram junto
+            sw, sh = sh, sw
+        rh = max(2, round(RW * sh / sw / 2) * 2)
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", arquivo, "-an", "-vf", f"fps=5,scale={RW}:{rh}",
+                              "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+        n, quadros = RW * rh * 3, []
+        for i in range(0, len(raw) - n + 1, n):
+            q = raw[i:i + n]
+            ys, cbs, crs = [], [], []
+            for j in range(0, n, 3):
+                y = 0.299 * q[j] + 0.587 * q[j + 1] + 0.114 * q[j + 2]
+                ys.append(y); cbs.append((q[j + 2] - y) * 0.564); crs.append((q[j] - y) * 0.713)
+            fy = [sorted(ys[r * RW:(r + 1) * RW])[RW // 2] for r in range(rh)]
+            fcb, fcr = sorted(cbs)[len(cbs) // 2], sorted(crs)[len(crs) // 2]
+            xs, yy = [], []
+            for k in range(RW * rh):
+                cb, cr = cbs[k] - fcb, crs[k] - fcr
+                if cr > 6 and cr > -cb and cb <= 2:  # tom quente: mão
+                    continue
+                d = ys[k] - fy[k // RW]
+                if max(0, -d) + 0.5 * max(0, d) + 2.5 * (abs(cb) + abs(cr)) > 50:
+                    xs.append(k % RW); yy.append(k // RW)
+            caixa = None
+            if 12 <= len(xs) <= 0.3 * RW * rh:
+                borda = sum(1 for x, y in zip(xs, yy) if x < 2 or x >= RW - 2 or y < 2)  # antes de ordenar
+                xs.sort(); yy.sort()
+                pc = lambda a, f: a[int(f * (len(a) - 1))]
+                # o último campo diz se o produto encosta na lateral ou no topo: cortado ou perto demais
+                caixa = ((pc(xs, .5) + .5) / RW, (pc(yy, .5) + .5) / rh, (pc(xs, .9) - pc(xs, .1) + 1) / RW, borda >= 3)
+            quadros.append((len(quadros) / 5, caixa))
+        _RASTRO[arquivo] = (sw, sh, quadros)
+    return _RASTRO[arquivo]
+
+
+def _enquadre(arquivo, origem, fonte, w, h, alvo, teto):
+    """Recorte que segue o produto: zoom fixo no clipe (entre 1 e `teto`) para a largura dele chegar a
+    `alvo` do painel e para caber pô-lo no centro; centro suavizado (~1 s) em quadros-chave a cada 0,4 s.
+    None: não há produto."""
+    sw, sh, q = _rastro(arquivo)
+    jan = [(t - origem, c) for t, c in q if origem - 0.6 <= t <= origem + fonte + 0.6]
+    vistos = [c for _, c in jan if c]
+    if len(vistos) < max(2, 0.5 * len(jan)):
+        return None
+    cw, ch = (sh * w / h, sh) if sw / sh > w / h else (sw, sw * h / w)  # recorte de cobertura do painel
+    med = lambda k: sorted(c[k] for c in vistos)[len(vistos) // 2]
+    z_tam = cw * alvo / (med(2) * sw)
+    # zoom que dá folga para pôr o produto no centro (o recorte de cobertura já pode andar no eixo que sobra)
+    z_centro = max(cw / max(sw * 0.5, sw - 2 * abs(med(0) - 0.5) * sw), ch / max(sh * 0.5, sh - 2 * abs(med(1) - 0.5) * sh))
+    z = max(1.0, min(teto, max(z_tam, z_centro)))
+    cw, ch = int(cw / z) // 2 * 2, int(ch / z) // 2 * 2
+    pts, ult = [], vistos[0]
+    for t, c in jan:
+        ult = c or ult
+        pts.append((t, ult[0] * sw, ult[1] * sh))
+    suave = lambda i, k: sum(p[k] for p in pts[max(0, i - 2):i + 3]) / len(pts[max(0, i - 2):i + 3])
+    chaves, t = [], 0.0
+    while True:
+        i = min(range(len(pts)), key=lambda j: abs(pts[j][0] - t))
+        chaves.append((t, max(0, min(sw - cw, suave(i, 1) - cw / 2)), max(0, min(sh - ch, suave(i, 2) - ch / 2))))
+        if t >= fonte:
+            break
+        t = min(fonte, t + 0.4)
+
+    def expr(k):
+        e = f"{chaves[-1][k]:.1f}"
+        for (t0, *a), (t1, *b) in reversed(list(zip(chaves, chaves[1:]))):
+            e = f"if(lt(t,{t1:.2f}),{a[k - 1]:.1f}+({b[k - 1] - a[k - 1]:.1f})*(t-{t0:.2f})/{t1 - t0:.2f},{e})"
+        return e
+    return f"crop={cw}:{ch}:x='{expr(1)}':y='{expr(2)}'", z
+
+
+def _nota_enquadre(arquivo, ini, dur, alvo, teto):
+    """0 a 1: fração da janela com o produto perto do centro e do tamanho `alvo` (o que o zoom
+    sozinho não conserta: produto perto demais da câmera ou encostado na borda)."""
+    _, _, q = _rastro(arquivo)
+    jan = [c for t, c in q if ini <= t < ini + dur] or [None]
+    return sum(1 for c in jan if c and abs(c[2] - alvo) <= 0.15 and abs(c[0] - 0.5) <= 0.12
+               and abs(c[1] - 0.5) <= 0.1 and not c[3]) / len(jan)
+
+
+def _melhor_trecho(arquivo, dur, ocupados=(), enquadre=None):
     """Início da janela mais viva e nítida do bruto, fora do começo e do fim (mão entrando, tremido)
-    e sem repetir trechos já usados. Movimento acima do percentil 90 conta como 90 (chacoalhão não vale mais)."""
+    e sem repetir trechos já usados. Movimento acima do percentil 90 conta como 90 (chacoalhão não vale mais).
+    Com `enquadre` (alvo, teto), pesa também o produto num tamanho enquadrável."""
     q = _analise(arquivo)
     if not q:
         return 0.0
@@ -273,6 +369,8 @@ def _melhor_trecho(arquivo, dur, ocupados=()):
         if all(s + dur <= a or s >= b for a, b in ocupados):
             jan = [x for x in q if s <= x[0] < s + dur] or q[:1]
             nota = sum(min(x[1], teto) for x in jan) / len(jan) / teto - 0.5 * sum(x[2] for x in jan) / len(jan) / mediana_b
+            if enquadre:
+                nota += 3 * _nota_enquadre(arquivo, s, dur, *enquadre)
             if melhor[0] is None or nota > melhor[0]:
                 melhor = (nota, s)
         s += 0.1
@@ -330,16 +428,39 @@ SFX_DA_TRANSICAO = {"zoom_in": "swoosh", "zoom_out": "swoosh", "desfoque": "swoo
 SEM_EQUIVALENTE = {"combinar", "radial_blur", "typing", "typewriting"}
 
 
-def _trecho(idx, c, dur, p, w, h, transicao, avisos, pulsos=(), velocidade=1.0):
-    """Filtro de um clipe: recorte do bruto, enquadramento sem barras, velocidade, zoom com pulsos nos
-    golpes de dentro do clipe, transição de entrada e efeito."""
-    fonte = dur * velocidade  # câmera lenta usa menos tempo do bruto
+def _tempo(dur, vel, rampa):
+    """Tempo do bruto usado e o setpts da câmera lenta. Com rampa, entra no golpe em velocidade normal e
+    desacelera até `vel` no primeiro terço (velocidade linear no tempo do bruto: saída = ln(1+kT)/k)."""
+    if vel >= 1.0:
+        return dur, ""
+    if not rampa:
+        return dur * vel, f"setpts=PTS/{vel}"
+    k_saida = math.log(vel) / (vel - 1)        # quanto a rampa dura na saída por segundo de bruto
+    a = 0.3 * dur / k_saida                     # rampa ocupa 30% do clipe na saída
+    k = (vel - 1) / a
+    fim_rampa = math.log(vel) / k
+    return a + (dur - fim_rampa) * vel, (f"setpts='if(lt(T,{a:.4f}),log(1+({k:.4f})*T)/({k:.4f}),"
+                                          f"{fim_rampa:.4f}+(T-{a:.4f})/{vel})/TB'")
+
+
+def _trecho(idx, c, dur, p, w, h, transicao, avisos, pulsos=(), velocidade=1.0, enq=None):
+    """Filtro de um clipe: recorte do bruto (seguindo o produto, com `enq`), velocidade com rampa e
+    quadros interpolados, zoom com pulsos nos golpes de dentro do clipe, transição de entrada e efeito."""
+    fonte, lento = _tempo(dur, velocidade, p.get("rampa"))
     origem = float(c.get("inicio", 0))
     disp = _duracao(c["arquivo"])
     origem = max(0.0, min(origem, disp - fonte)) if disp > fonte else 0.0
-    lento = f",setpts=PTS/{velocidade}" if velocidade != 1.0 else ""
-    f = (f"[{idx}:v]trim=start={origem:.3f}:duration={fonte:.3f},setpts=PTS-STARTPTS{lento},fps={FPS},"
-         f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1")
+    enquadra = (enq or {}).get("crop")
+    f = f"[{idx}:v]trim=start={origem:.3f}:duration={fonte:.3f},setpts=PTS-STARTPTS,"
+    f += f"{enquadra},scale={w}:{h}" if enquadra else f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"
+    if lento:
+        # quadros intermediários por fluxo de movimento: câmera lenta lisa a partir de 30 qps;
+        # calculados em meia resolução (a interpolação é o passo caro) e depois ampliados
+        f += (f",fps={FPS},scale={w // 2 // 2 * 2}:{h // 2 // 2 * 2},minterpolate=fps={math.ceil(FPS / velocidade)}:mi_mode=mci,"
+              f"{lento},fps={FPS},scale={w}:{h}")
+    else:
+        f += f",fps={FPS}"
+    f += ",setsar=1"
     if disp < origem + fonte:  # bruto curto: segura o último quadro em vez de cortar o tempo
         f += f",tpad=stop_mode=clone:stop_duration={dur:.3f},trim=duration={dur:.3f}"
     for nome in [transicao] + list(c.get("efeitos") or ([c["efeito"]] if c.get("efeito") else [])):
@@ -444,11 +565,14 @@ def render(plano_path):
                 if pb.get("lento") and not c.get("continuo") and a1 - a0 >= pb.get("lento_min", 1.2):
                     vel = float(pb["lento"])  # clipe longo respira em câmera lenta leve
                 vel = float(c.get("velocidade", vel))
-                fonte = (a1 - a0) * vel
+                fonte = _tempo(a1 - a0, vel, pb.get("rampa"))[0]
+                alvo = (float(pb.get("tamanho_alvo", 0.5)), float(pb.get("zoom_teto", 1.35)))
+                enquadrar = pb.get("enquadrar") and c.get("enquadrar", True) and not c.get("continuo")
                 if c.get("continuo"):
                     pass
                 elif c.get("inicio") in (None, "auto"):  # escolhe a janela mais viva e nítida ainda não usada
-                    c = {**c, "inicio": _melhor_trecho(c["arquivo"], fonte, usado.get(c["arquivo"], []))}
+                    c = {**c, "inicio": _melhor_trecho(c["arquivo"], fonte, usado.get(c["arquivo"], []),
+                                                       alvo if enquadrar else None)}
                 elif any(a < float(c["inicio"]) + fonte and float(c["inicio"]) < b for a, b in usado.get(c["arquivo"], [])):
                     novo = max(b for _, b in usado[c["arquivo"]])  # reusado: continua de onde parou, sem repetir
                     if novo + fonte > _duracao(c["arquivo"]):
@@ -456,8 +580,13 @@ def render(plano_path):
                     else:
                         c = {**c, "inicio": novo}
                 usado.setdefault(c["arquivo"], []).append((float(c.get("inicio", 0)), float(c.get("inicio", 0)) + fonte))
+                enq = None
+                if enquadrar:
+                    r = _enquadre(c["arquivo"], float(c.get("inicio", 0)), fonte, w, h, *alvo)
+                    enq = r and {"crop": r[0], "zoom": round(r[1], 2)}
                 escolhas.append({"arquivo": os.path.basename(c["arquivo"]), "no_video": round(t0 + a0, 2),
-                                 "inicio": c.get("inicio"), "duracao": round(a1 - a0, 2), "velocidade": vel})
+                                 "inicio": c.get("inicio"), "duracao": round(a1 - a0, 2), "velocidade": vel,
+                                 "enquadre": enq and enq["zoom"]})
                 pulsos = []
                 if golpes and pb.get("pulsos") and not c.get("continuo"):
                     fortes = sorted((f for _, f in golpes), reverse=True)
@@ -484,7 +613,7 @@ def render(plano_path):
                     else:
                         avisos.append(f"efeito sonoro '{nome_sfx}' sem equivalente na rota local, ficou de fora")
                 rot = f"b{bi}p{pi}c{k}"
-                filtros.append(_trecho(entra(c["arquivo"]), c, a1 - a0, pb, w, h, trans, avisos, pulsos, vel) + f"[{rot}]")
+                filtros.append(_trecho(entra(c["arquivo"]), c, a1 - a0, pb, w, h, trans, avisos, pulsos, vel, enq) + f"[{rot}]")
                 nomes.append(f"[{rot}]")
             filtros.append(f"{''.join(nomes)}concat=n={len(nomes)}:v=1:a=0,"
                            f"tpad=stop_mode=clone:stop_duration={d:.3f},trim=duration={d:.3f}[b{bi}p{pi}]")
@@ -618,6 +747,26 @@ def teste():
             ok &= passou
             print(f"{'ok ' if passou else 'ERRO'} {nome:9s} bpm {bpm} -> {r['bpm']}; cortes em som real "
                   f"{len(no_som)}/{len(cortes)}; clipe médio {media:.2f} s")
+    # rampa: a soma do tempo de saída tem que dar a duração do clipe
+    for dur, vel in ((1.0, 0.5), (2.5, 0.4)):
+        fonte, _ = _tempo(dur, vel, True)
+        a = 0.3 * dur * (vel - 1) / math.log(vel)
+        k = (vel - 1) / a
+        saida = math.log(1 + k * a) / k + (fonte - a) / vel
+        passou = abs(saida - dur) < 1e-6
+        ok &= passou
+        print(f"{'ok ' if passou else 'ERRO'} rampa {dur} s a {vel}: usa {fonte:.3f} s do bruto, sai {saida:.3f} s")
+    # rastro: produto escuro sobre asfalto cinza, fora do centro, e uma mão (tom de pele) que não pode contar
+    with tempfile.TemporaryDirectory() as d:
+        arq = os.path.join(d, "produto.mp4")
+        _ffmpeg(["-f", "lavfi", "-i", "color=c=0x808080:s=360x640:d=1:r=10", "-vf",
+                 "drawbox=x=180:y=200:w=150:h=60:color=0x202030:t=fill,drawbox=x=0:y=380:w=200:h=120:color=0xE0A080:t=fill",
+                 "-pix_fmt", "yuv420p", arq])
+        _, _, q = _rastro(arq)
+        cx, cy, larg, borda = q[0][1]
+        passou = abs(cx - 255 / 360) < 0.04 and abs(cy - 230 / 640) < 0.03 and abs(larg - 150 / 360) < 0.1 and not borda
+        ok &= passou
+        print(f"{'ok ' if passou else 'ERRO'} rastro: centro ({cx:.2f}, {cy:.2f}) de (0.71, 0.36), largura {larg:.2f} de 0.42, mão ignorada")
     return ok
 
 

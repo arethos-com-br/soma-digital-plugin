@@ -3,7 +3,7 @@
   "duracao": 15,
   "no_ritmo": true,
   "cortar_nos_golpes": true,
-  "batidas_media": 1.5,
+  "batidas_media": 2,
   "gancho_min": 1.5,
   "gancho_max": 4.0,
   "corte_min": 0.45,
@@ -13,9 +13,13 @@
   "sfx_nas_transicoes": true,
   "sfx_volume": 0.35,
   "pulsos": true,
-  "lento": 0.8,
-  "lento_min": 1.2,
+  "lento": 0.5,
+  "lento_min": 0.9,
   "zoom": true,
   "zoom_max": 1.06,
-  "flash_no_corte": "gancho"
+  "flash_no_corte": "gancho",
+  "rampa": true,
+  "enquadrar": true,
+  "tamanho_alvo": 0.5,
+  "zoom_teto": 1.35
 }
