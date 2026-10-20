@@ -3,6 +3,7 @@
 Só biblioteca padrão do Python; precisa do ffmpeg no PATH.
 
     py -B -I video_local.py batidas musica.m4a        (Windows; python3 no macOS/Linux)
+    py -B -I video_local.py musica musica.m4a 15     (confere a música antes do plano)
     py -B -I video_local.py render plano.json
     py -B -I video_local.py teste
 """
@@ -149,6 +150,34 @@ def _inicio_musica(marcas, piso, vao, sobra, primeira):
     cabe = [g for g in fortes if g <= sobra]
     inicio = next((g for g in cabe if em_sequencia(g)), cabe[0] if cabe else primeira)
     return inicio, next((g for g in fortes if em_sequencia(g)), None)
+
+
+def conferir_musica(musica, p):
+    """A música antes do plano: BPM, se corta no grave ou nos golpes do som todo, onde o vídeo começa e se a
+    faixa serve. `p` é a receita com o plano (usa `duracao`, `musica_inicio`, `golpe_piso`, `corte_max`)."""
+    auto = p.get("musica_inicio") in (None, "auto")
+    analise = 0.0 if auto else float(p["musica_inicio"])
+    total, dur = _duracao(musica), float(p.get("duracao", 15))
+    info = batidas(musica, analise, 90)
+    piso, vao = float(p.get("golpe_piso", 0.6)), float(p.get("corte_max", 2.5))
+    # corta no grave (bumbo e baixo); faixa sem grave que bata (voz, violão) corta nos golpes do som todo
+    ouvido = min(90.0, total - analise)
+    corte_no = "grave" if sum(1 for _, f in info["graves"] if f >= piso) >= ouvido / vao / 2 else "golpe"
+    marcas = info["graves"] if corte_no == "grave" else info["golpes"]
+    avisos, seq = [], None
+    if auto:
+        inicio, seq = _inicio_musica(marcas, piso, vao, total - dur, info["primeira"])
+        if seq is not None and seq > inicio + vao:
+            avisos.append(f"a batida em sequência só começa em {seq:.1f} s da música e dura {total - seq:.1f} s; para "
+                          f"{dur:g} s o vídeo abre com {seq - inicio:.1f} s de introdução da faixa (voz ou efeito sonoro "
+                          "de outra edição). Peça a música completa ou um vídeo mais curto")
+    else:
+        inicio = info["primeira"]  # trecho pedido: começa na primeira batida depois dele
+    if total - (analise + inicio) < dur - 0.05:
+        avisos.append(f"a música acaba {dur - (total - analise - inicio):.1f} s antes do vídeo; o final fica sem som")
+    return {"bpm": info["bpm"], "corte_no": corte_no, "inicio": round(analise + inicio, 3),
+            "batida_em_sequencia": None if seq is None else round(seq, 2), "duracao_musica": round(total, 2),
+            "pronta": not avisos, "avisos": avisos, "info": info, "marcas": marcas, "analise": analise}
 
 
 def _receita(plano):
@@ -451,7 +480,7 @@ EFEITOS = {
     "negativo": "negate=enable='lt(t,0.07)'",
 }
 SFX = {  # (fonte lavfi, quanto começa antes do corte em s)
-    # ganhos medidos para que todos tenham pico perto de -6 dBFS antes de `sfx_volume`
+    # ganhos medidos para que todos tenham pico perto de -6 dBFS; o mix ajusta cada um à música (`sfx_abaixo_db`)
     "swoosh": ("anoisesrc=d=0.4:c=pink:a=0.6:r=44100,highpass=f=700,lowpass=f=5000,afade=t=in:d=0.28,afade=t=out:st=0.28:d=0.12,volume=9dB", 0.28),
     "pop": ("sine=f=520:d=0.07:sample_rate=44100,afade=t=out:st=0.01:d=0.06,volume=12dB", 0.0),
     "click": ("sine=f=2600:d=0.02:sample_rate=44100,afade=t=out:d=0.02,volume=12dB", 0.0),
@@ -460,7 +489,7 @@ SFX = {  # (fonte lavfi, quanto começa antes do corte em s)
 }
 SFX.update({"woosh": SFX["swoosh"], "swish": SFX["swoosh"], "shun": SFX["swoosh"]})
 SFX_DA_TRANSICAO = {"zoom_in": "swoosh", "zoom_out": "swoosh", "desfoque": "swoosh", "flash_falha": "glitch"}
-SEM_EQUIVALENTE = {"combinar", "radial_blur", "typing", "typewriting"}
+SEM_EQUIVALENTE = {"combinar", "radial_blur"}
 
 
 def _tempo(dur, vel, rampa):
@@ -476,6 +505,55 @@ def _tempo(dur, vel, rampa):
     fim_rampa = math.log(vel) / k
     return a + (dur - fim_rampa) * vel, (f"setpts='if(lt(T,{a:.4f}),log(1+({k:.4f})*T)/({k:.4f}),"
                                           f"{fim_rampa:.4f}+(T-{a:.4f})/{vel})/TB'")
+
+
+def _sons(pasta, nome):
+    """Arquivos de um efeito sonoro no pacote: `pasta/nome/*` (várias versões) ou `pasta/nome.*`."""
+    if not pasta:
+        return []
+    audio = (".wav", ".mp3", ".m4a", ".ogg", ".aac", ".flac")
+    sub = os.path.join(pasta, nome)
+    if os.path.isdir(sub):
+        return sorted(os.path.join(sub, f) for f in os.listdir(sub) if f.lower().endswith(audio))
+    return sorted(os.path.join(pasta, f) for f in os.listdir(pasta) if os.path.splitext(f)[0] == nome and f.lower().endswith(audio))
+
+
+_PICOS = {}
+
+
+def _pico(arquivo):
+    """Segundo em que o som do arquivo é mais forte (energia em janelas de 20 ms, não a amostra mais alta, que
+    num swoosh longo chega antes do que se ouve): é ele que cai no corte."""
+    if arquivo not in _PICOS:
+        a, h = _amostras(arquivo, 0, 10), int(0.02 * SR)
+        en = [sum(x * x for x in a[i:i + h]) for i in range(0, max(1, len(a) - h), h // 2)]
+        _PICOS[arquivo] = (max(range(len(en)), key=lambda i: en[i]) * (h // 2) + h / 2) / SR if a else 0.0
+    return _PICOS[arquivo]
+
+
+_NIVEIS = {}
+
+
+def _nivel_pico(fonte):
+    """Nível do trecho mais forte (janela de 20 ms, dBFS) de um arquivo de som ou de uma fonte lavfi."""
+    if fonte not in _NIVEIS:
+        if os.path.exists(fonte):
+            a = _amostras(fonte, 0, 10)
+        else:
+            a = array.array("h")
+            a.frombytes(_ffmpeg(["-f", "lavfi", "-i", fonte, "-ac", "1", "-ar", str(SR), "-f", "s16le", "-"],
+                                capture_output=True).stdout)
+        h = int(0.02 * SR)
+        en = max((sum(x * x for x in a[i:i + h]) / h for i in range(0, max(1, len(a) - h), h // 2)), default=0)
+        _NIVEIS[fonte] = 10 * math.log10(en / 32768 ** 2 + 1e-12)
+    return _NIVEIS[fonte]
+
+
+def _nivel_musica(musica, t, volume=1.0):
+    """Nível médio da música (dBFS) em 0,5 s em volta de `t`, já com o volume dela no mix."""
+    a = _amostras(musica, max(0.0, t - 0.25), 0.5)
+    en = sum(x * x for x in a) / max(1, len(a))
+    return 10 * math.log10(en / 32768 ** 2 + 1e-12) + 20 * math.log10(max(volume, 1e-6))
 
 
 def _trecho(idx, c, dur, p, w, h, transicao, avisos, pulsos=(), velocidade=1.0, enq=None):
@@ -529,35 +607,15 @@ def render(plano_path):
     base = os.path.dirname(os.path.abspath(plano_path))
     absol = lambda x: x if os.path.isabs(x) else os.path.join(base, x)
     musica, voz = p.get("musica"), p.get("voz")
-    auto = p.get("musica_inicio") in (None, "auto")
-    m_ini, grade, info, golpes, corte_no = 0.0 if auto else float(p["musica_inicio"]), None, None, None, None
-    aviso_musica = None
-    analise = m_ini
+    m_ini, grade, info, golpes, corte_no, avisos_musica = 0.0, None, None, None, None, []
     if musica:
         musica = absol(musica)
         if p.get("no_ritmo", True):
-            info = batidas(musica, m_ini, 90)
-            grade = 60 / info["bpm"]
-            inicio_rel = info["primeira"]  # sem auto: o vídeo começa na primeira batida
-            # corta no grave (bumbo e baixo); faixa sem grave que bata (voz, violão) corta nos golpes do som todo
-            fortes_g = [g for g, f in info["graves"] if f >= p.get("golpe_piso", 0.6)]
-            ouvido = min(90.0, _duracao(musica) - m_ini)
-            corte_no = "grave" if len(fortes_g) >= ouvido / float(p.get("corte_max", 2.5)) / 2 else "golpe"
-            marcas = info["graves"] if corte_no == "grave" else info["golpes"]
-            if auto:
-                sobra = _duracao(musica) - float(p.get("duracao", 15))
-                inicio_rel, seq = _inicio_musica(marcas, float(p.get("golpe_piso", 0.6)), float(p.get("corte_max", 2.5)),
-                                                 sobra, info["primeira"])
-                vao = float(p.get("corte_max", 2.5))
-                if seq is not None and seq > inicio_rel + vao:
-                    aviso_musica = (f"a batida em sequência só começa em {m_ini + seq:.1f} s da música e dura "
-                                    f"{_duracao(musica) - m_ini - seq:.1f} s; para {float(p.get('duracao', 15)):g} s o vídeo "
-                                    f"abre com {seq - inicio_rel:.1f} s de introdução da faixa (voz ou efeito sonoro de outra "
-                                    "edição). Peça a música completa ou um vídeo mais curto")
-            if _duracao(musica) - (m_ini + inicio_rel) < float(p.get("duracao", 15)) - 0.05:
-                print("aviso: a música acaba antes do vídeo; o final fica sem som", file=sys.stderr)
-            m_ini += inicio_rel
-            golpes = [[round(g - (m_ini - analise), 4), f] for g, f in marcas if g - (m_ini - analise) > -0.02]
+            m = conferir_musica(musica, p)
+            info, grade, corte_no, m_ini, avisos_musica = m["info"], 60 / m["bpm"], m["corte_no"], m["inicio"], m["avisos"]
+            golpes = [[round(g - (m_ini - m["analise"]), 4), f] for g, f in m["marcas"] if g - (m_ini - m["analise"]) > -0.02]
+        elif p.get("musica_inicio") not in (None, "auto"):
+            m_ini = float(p["musica_inicio"])
 
     # duração de cada bloco: em batidas (encaixa na música) ou segundos; o último pode preencher até `duracao`
     blocos, t = [], 0.0
@@ -588,8 +646,11 @@ def render(plano_path):
     flash_modo = p.get("flash_no_corte", "gancho")
     giro = p.get("transicoes") or []
     avisos, sfx, cortes_v, usado, escolhas = [], [], set(), {}, []
-    if aviso_musica:
-        avisos.append(aviso_musica)  # usado: trechos já usados de cada bruto
+    avisos.extend(avisos_musica)
+    pasta_sfx = absol(p["sfx_pasta"]) if p.get("sfx_pasta") else None
+    if pasta_sfx and not os.path.isdir(pasta_sfx):
+        avisos.append(f"pasta de efeitos sonoros não encontrada ({pasta_sfx}); usei os sintetizados")
+        pasta_sfx = None  # usado: trechos já usados de cada bruto
     for bi, (b, t0, d) in enumerate(blocos):
         rets = _paineis(b, p)
         paineis = b.get("paineis") or []
@@ -657,7 +718,7 @@ def render(plano_path):
                 if "sfx" not in c and not nome_sfx and pb.get("sfx_nas_transicoes"):
                     nome_sfx = SFX_DA_TRANSICAO.get(trans)  # o som acompanha a transição visual
                 if nome_sfx:
-                    if nome_sfx in SFX:
+                    if nome_sfx in SFX or _sons(pasta_sfx, nome_sfx):
                         sfx.append((nome_sfx, t0 + a0))
                     else:
                         avisos.append(f"efeito sonoro '{nome_sfx}' sem equivalente na rota local, ficou de fora")
@@ -685,10 +746,26 @@ def render(plano_path):
                        f"afade=t=out:st={max(0, total - 0.5):.3f}:d=0.5,"
                        f"aformat=sample_rates=44100:channel_layouts=stereo[mus]")
         audios.append("[mus]")
+    usados_sfx, niveis_sfx = {}, []
+    abaixo = float(p.get("sfx_abaixo_db", 8))
+    vol_musica = float(p.get("musica_volume", 0.25 if voz else 1.0))
     for k, (nome, quando) in enumerate(sfx):
-        fonte, antes = SFX[nome]
+        arquivos = _sons(pasta_sfx, nome)
+        if arquivos:  # som do pacote, variando entre as versões; o pico cai no corte
+            arq = arquivos[usados_sfx.get(nome, 0) % len(arquivos)]
+            usados_sfx[nome] = usados_sfx.get(nome, 0) + 1
+            idx = entra(arq)
+            fonte, antes, nivel = f"[{idx}:a]anull", _pico(arq), _nivel_pico(arq)
+        else:
+            fonte, antes = SFX[nome]
+            nivel = _nivel_pico(fonte)
+        # o efeito nunca passa da música: o pico dele fica `sfx_abaixo_db` abaixo do nível da música naquele corte
+        ref = _nivel_musica(musica, m_ini + quando, vol_musica) if musica else -20.0
+        ganho = max(-40.0, min(12.0, ref - abaixo - nivel))
+        niveis_sfx.append({"efeito": nome, "no_video": round(quando, 2), "musica_db": round(ref, 1),
+                           "efeito_db": round(nivel + ganho, 1)})
         atraso = max(0, int((quando - antes) * 1000))
-        filtros.append(f"{fonte},volume={float(p.get('sfx_volume', 0.35))},adelay={atraso}:all=1,"
+        filtros.append(f"{fonte},volume={ganho:.1f}dB,adelay={atraso}:all=1,"
                        f"aformat=sample_rates=44100:channel_layouts=stereo[sfx{k}]")
         audios.append(f"[sfx{k}]")
     if audios:
@@ -713,7 +790,7 @@ def render(plano_path):
         print("aviso:", a, file=sys.stderr)
     return {"saida": saida, "duracao": round(total, 3), "bpm": info and info["bpm"],
             "musica_inicio": round(m_ini, 3) if musica else None, "corte_no": corte_no, "sincronia": sinc,
-            "cortes": sorted(cortes_v), "avisos": avisos, "clipes": escolhas,
+            "cortes": sorted(cortes_v), "avisos": avisos, "clipes": escolhas, "efeitos_sonoros": niveis_sfx,
             "blocos": [{"layout": b.get("layout", "cheio"), "inicio": t0, "duracao": d} for b, t0, d in blocos]}
 
 
@@ -829,6 +906,9 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "batidas" and len(sys.argv) > 2:
         print(json.dumps(batidas(sys.argv[2], *(float(x) for x in sys.argv[3:5])), ensure_ascii=False))
+    elif cmd == "musica" and len(sys.argv) > 2:  # conferir a música antes de planejar
+        m = conferir_musica(sys.argv[2], _receita({"receita": "corte-musical", "duracao": float(sys.argv[3]) if len(sys.argv) > 3 else 15}))
+        print(json.dumps({k: v for k, v in m.items() if k not in ("info", "marcas", "analise")}, ensure_ascii=False))
     elif cmd == "render" and len(sys.argv) > 2:
         print(json.dumps(render(sys.argv[2]), ensure_ascii=False))
     elif cmd == "teste":

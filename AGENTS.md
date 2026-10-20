@@ -31,6 +31,12 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
   - folha de quadros com uma cruz no centro, olhada de fato.
 - Entregar só com esses números, sem afirmar além deles.
 
+**Efeitos sonoros**
+- Volume relativo à música, nunca fixo: o pico do efeito fica 8 dB abaixo do nível da música naquele corte. Conferir no MP4 subtraindo a música do mix e medindo o que sobra.
+- O ponto que cai no corte é o pico de energia (janela de 20 ms), não a amostra mais alta: num swoosh longo a amostra mais alta chega até 0,2 s antes do que se ouve.
+- Swoosh real tem grave: a auditoria de corte no grave feita no mix final cai (8 de 10 na v11) sem que o corte tenha mudado. Medir a sincronia na música, não no mix.
+- Pacotes baixados (YouTube) ficam fora do repositório público; o plugin só lê uma pasta local (`sfx_pasta`).
+
 **Escolha do trecho e enquadramento**
 - "Mais movimento" escolhe a mão girando o produto perto da câmera.
   - Produto: centralizado, tamanho perto do alvo, sem encostar na borda.

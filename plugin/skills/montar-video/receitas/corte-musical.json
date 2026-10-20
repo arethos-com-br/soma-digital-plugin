@@ -11,7 +11,7 @@
   "ordem": "contraste",
   "transicoes": ["zoom_in", "corte", "corte", "desfoque", "corte", "zoom_out", "corte", "brilho"],
   "sfx_nas_transicoes": true,
-  "sfx_volume": 0.35,
+  "sfx_abaixo_db": 8,
   "pulsos": true,
   "lento": 0.7,
   "lento_min": 0.9,

@@ -24,5 +24,5 @@
   "corte_max": 3.0,
   "pulsos": true,
   "sfx_nas_transicoes": true,
-  "sfx_volume": 0.35
+  "sfx_abaixo_db": 8
 }

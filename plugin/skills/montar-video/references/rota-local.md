@@ -2,9 +2,11 @@
 
 Monta e renderiza o MP4 no computador de quem usa, com corte na batida da música. Precisa do ffmpeg no PATH; o script usa só a biblioteca padrão do Python. Sem ffmpeg: no Windows `winget install Gyan.FFmpeg`, no macOS `brew install ffmpeg`; peça antes de instalar.
 
-Rodar: `py -B -I scripts/video_local.py render plano.json` no Windows (`python3` no macOS/Linux). `batidas <musica>` mostra BPM e acentos; `teste` confere o detector.
+Rodar: `py -B -I scripts/video_local.py render plano.json` no Windows (`python3` no macOS/Linux). `musica <arquivo> <duração>` confere a faixa antes do plano; `batidas <musica>` mostra BPM e acentos; `teste` confere o detector.
 
 ## Música
+
+Primeiro a música, depois o plano: `musica <arquivo> <duração>` devolve BPM, `corte_no`, onde o vídeo começa, onde a batida entra em sequência e `pronta`. Com `pronta: false`, repasse os avisos e peça a faixa original completa (ou uma duração menor) antes de planejar; áudio de um Reels ou exemplo já editado traz os efeitos sonoros e a voz daquela edição.
 
 Arquivo de áudio ou vídeo com a música (a que indicarem, o áudio da trend baixado, ou extraída de um vídeo de referência). Deixe `musica_inicio` de fora (não use 0): o vídeo começa onde a batida já está em sequência, pulando introdução, voz e efeito sonoro solto. Informe o segundo só quando pedirem um trecho; aí o vídeo começa na primeira batida depois dele. Música tirada de um vídeo já editado (um exemplo, outro Reels) traz junto os efeitos sonoros e a voz daquela edição; se a parte só de música for mais curta que o vídeo, o render avisa: repasse o aviso e peça a música completa ou um vídeo mais curto. A detecção assume tempo constante; faixa só de voz não tem batida (use `"no_ritmo": false`).
 
@@ -43,7 +45,8 @@ O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 
 - `pulsos`: empurrão de zoom de 4% nos golpes fortes que caem dentro de um clipe.
 - `enquadrar`: acha o produto em cada quadro (o que destoa do fundo, sem contar a mão) e recorta seguindo ele: centro do quadro e largura `tamanho_alvo` (0,5, medida no A02), com zoom até `zoom_teto` (1,35, para não perder nitidez). Planos de pessoa ou de loja não têm produto destacado e ficam como estão; neles o trecho escolhido é o que termina no gesto concluído (pôs o óculos e olhou para a câmera), para o corte não chegar antes.
 - `lento` (0.7), `lento_min` (0,9 s) e `rampa`: nos clipes longos, entra no golpe em velocidade normal e desacelera até 0,7x; os quadros intermediários são criados por fluxo de movimento, sem engasgar a partir de 30 qps.
-- `sfx_nas_transicoes`: o som acompanha a transição visual (zoom e desfoque: swoosh; flash com falha: glitch), baixo (`sfx_volume` 0.35); corte seco fica sem som.
+- `sfx_nas_transicoes`: o som acompanha a transição visual (zoom e desfoque: swoosh; flash com falha: glitch); corte seco fica sem som. O volume de cada efeito é medido contra a música naquele corte: o pico do efeito fica `sfx_abaixo_db` (8 dB) abaixo do nível da música, então nunca a cobre. O render lista os níveis em `efeitos_sonoros`.
+- `sfx_pasta`: pasta de efeitos sonoros da agência, com uma subpasta por nome (`swoosh`, `pop`, `click`, `glitch`, `vento`, `typing`, `typewriting`, `impacto`) e quantas versões quiser em cada; as versões se alternam e o ponto mais forte de cada som cai no corte. Procure uma pasta `sfx` junto dos brutos ou pergunte; sem ela, os sons são sintetizados.
 - `transicoes`: giro das transições, intercaladas com cortes secos.
 
 ## Repertório (D01) na rota local
@@ -60,11 +63,12 @@ O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 
 | Obturador lento | `efeito`: `obturador_lento` |
 | Sobreposição negativa | `efeito`: `negativo` (2 quadros no golpe) |
 | Desfoque cromático | `efeito`: `cromatico` |
-| Swoosh, Woosh, Swish, Shun | `sfx`: `swoosh` (sintetizado; o pico cai no corte) |
-| Pop, Click Sound, Glitch, Wind Noise | `sfx`: `pop`, `click`, `glitch`, `vento` (sintetizados) |
-| Combinar, Radial Blur, Typing, Typewriting | sem equivalente: o render avisa e deixa de fora |
+| Swoosh, Woosh, Swish, Shun | `sfx`: `swoosh` (da `sfx_pasta` ou sintetizado; o pico cai no corte) |
+| Pop, Click Sound, Glitch, Wind Noise | `sfx`: `pop`, `click`, `glitch`, `vento` (da `sfx_pasta` ou sintetizados) |
+| Typing, Typewriting | `sfx`: `typing`, `typewriting` (só com `sfx_pasta`) |
+| Combinar, Radial Blur | sem equivalente: o render avisa e deixa de fora |
 
-Os efeitos sonoros são sintetizados pelo ffmpeg (sem arquivo); soam simples. Use com moderação: um por transição forte, não em todo corte.
+Sem `sfx_pasta`, os efeitos sonoros são sintetizados pelo ffmpeg e soam simples. Use com moderação: um por transição forte, não em todo corte.
 
 ## Receitas (`receitas/*.json`)
 
