@@ -59,7 +59,8 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
 - Rodar `py -B -I` para não gravar `.pyc` nem ler módulos do diretório atual.
 - O ffmpeg 9 não tem `-filter_complex_script`: o grafo vai inline, com limite de 30 000 caracteres.
 - Testar no PC, com o mesmo app que a cliente usa, antes de mostrar.
-- Se o script falhar, o agente deve parar e informar o erro. Ele já copiou o script para contornar uma falha sem avisar.
+- Se o script falhar, o agente deve parar e informar o erro.
+- Na 0.10.0 o GPT-5.6 Terra tratou os pacotes de efeitos como "stock" e não os usou, trocou as transições da receita, desligou os efeitos sonoros, deixou 5 brutos de fora sem dizer e citou na entrega um clipe que não estava no vídeo. Correção: o render acha as pastas `sfx` e `visual` sozinho, a skill proíbe mudar a receita sem pedido e manda descrever o vídeo só pelo JSON do render. Regra geral: o que pode ser decidido no script não fica na mão do agente. Ele já copiou o script para contornar uma falha sem avisar.
 
 **Repositório**
 - Nada de `.pyc` nem de dado de cliente.

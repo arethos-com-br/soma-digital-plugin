@@ -691,8 +691,12 @@ def render(plano_path):
     usou_chicote, sobreposicoes = False, []
     avisos, sfx, cortes_v, usado, escolhas = [], [], set(), {}, []
     avisos.extend(avisos_musica)
-    pasta_sfx = absol(p["sfx_pasta"]) if p.get("sfx_pasta") else None
-    pasta_visual = absol(p["visual_pasta"]) if p.get("visual_pasta") else None
+    # pacotes da agência: os indicados no plano ou as pastas `sfx` e `visual` junto dos brutos (false desliga)
+    pasta_brutos = next((os.path.dirname(absol(c["arquivo"])) for b in p["blocos"] for pn in b.get("paineis") or []
+                         for c in pn), base)
+    achar = lambda campo, nome: (absol(p[campo]) if p.get(campo) else None) if campo in p else \
+        (os.path.join(pasta_brutos, nome) if os.path.isdir(os.path.join(pasta_brutos, nome)) else None)
+    pasta_sfx, pasta_visual = achar("sfx_pasta", "sfx"), achar("visual_pasta", "visual")
     if pasta_visual and not os.path.isdir(pasta_visual):
         avisos.append(f"pasta de efeitos visuais não encontrada ({pasta_visual}); usei os feitos por filtro")
         pasta_visual = None
@@ -769,6 +773,10 @@ def render(plano_path):
                 elif antes:  # trecho escolhido por quem planejou: a sobra da transição vem de antes dele
                     c = {**c, "inicio": max(0.0, float(c["inicio"]) - antes)}
                 usado.setdefault(c["arquivo"], []).append((float(c.get("inicio", 0)), float(c.get("inicio", 0)) + fonte))
+                if enquadrar and _nota_enquadre(c["arquivo"], float(c.get("inicio", 0)), fonte, *alvo) < 0.25 \
+                        and sum(1 for _, q in _rastro(c["arquivo"])[2] if q) >= 0.5 * len(_rastro(c["arquivo"])[2]):
+                    avisos.append(f"{os.path.basename(c['arquivo'])} em {t0 + a0:.1f} s: produto perto demais, cortado ou fora "
+                                  "do centro no trecho que sobrou; confira na folha e troque o bruto ou o `inicio` se precisar")
                 enq = None
                 if enquadrar:
                     r = _enquadre(c["arquivo"], float(c.get("inicio", 0)), fonte, w, h, *alvo)
@@ -905,6 +913,7 @@ def render(plano_path):
     return {"saida": saida, "duracao": round(total, 3), "bpm": info and info["bpm"],
             "musica_inicio": round(m_ini, 3) if musica else None, "corte_no": corte_no, "sincronia": sinc,
             "cortes": sorted(cortes_v), "avisos": avisos, "clipes": escolhas, "efeitos_sonoros": niveis_sfx,
+            "pacotes": {"sfx": pasta_sfx, "visual": pasta_visual}, "sobreposicoes": [[n, round(t, 2)] for n, t in sobreposicoes],
             "blocos": [{"layout": b.get("layout", "cheio"), "inicio": t0, "duracao": d} for b, t0, d in blocos]}
 
 
