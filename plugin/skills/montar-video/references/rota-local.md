@@ -26,7 +26,7 @@ Caminhos relativos ao plano. Campos do plano sobrescrevem os da receita.
 
 - `inicio`: deixe de fora; o script escolhe a janela de cada bruto com o produto centralizado e no tamanho certo, nítida e com movimento, fora do começo e do fim, sem repetir trecho. Informe só quando viu um momento específico que precisa entrar.
 - Não copie nem edite o script; se ele falhar, pare e informe o erro.
-- Por clipe, opcional: `transicao` (como ele entra, no golpe), `efeito` ou `efeitos` (lista), `sfx` (efeito sonoro no corte), `zoom` (true/false), `continuo` (segue o bloco inteiro), `batidas` (fixa a duração; evite, tira o corte do golpe), `segundos` (sem música).
+- Por clipe, opcional: `transicao` (como ele entra, no golpe; ver Repertório), `efeito` ou `efeitos` (lista), `sfx` (efeito sonoro no corte), `zoom` (true/false), `continuo` (segue o bloco inteiro), `batidas` (fixa a duração; evite, tira o corte do golpe), `segundos` (sem música).
 - Sem `transicao` no clipe, as transições giram pela lista `transicoes` da receita; `sfx_nos_cortes` põe o mesmo efeito sonoro em todos os cortes.
 - `velocidade`: força uma velocidade no clipe (0.5 a 1); a receita já põe câmera lenta nos clipes longos.
 - `enquadrar`: `false` no clipe desliga o reenquadramento automático dele.
@@ -48,6 +48,9 @@ O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 
 - `sfx_nas_transicoes`: o som acompanha a transição visual (zoom e desfoque: swoosh; flash com falha: glitch); corte seco fica sem som. O volume de cada efeito é medido contra a música naquele corte: o pico do efeito fica `sfx_abaixo_db` (8 dB) abaixo do nível da música, então nunca a cobre. O render lista os níveis em `efeitos_sonoros`.
 - `sfx_pasta`: pasta de efeitos sonoros da agência, com uma subpasta por nome (`swoosh`, `pop`, `click`, `glitch`, `vento`, `typing`, `typewriting`, `impacto`) e quantas versões quiser em cada; as versões se alternam e o ponto mais forte de cada som cai no corte. Procure uma pasta `sfx` junto dos brutos ou pergunte; sem ela, os sons são sintetizados.
 - `transicoes`: giro das transições, intercaladas com cortes secos.
+- Transições de passagem (`combinar`, `desfoque_passagem`, `zoom_passagem`, `deslizar`, `pixel`, `chicote`): os dois clipes se sobrepõem por cerca de 0,3 s e o meio da passagem cai no golpe. Clipe curto demais para a sobreposição fica com corte seco.
+- `transicao_gancho`: a transição do fim do gancho (`chicote` na receita).
+- `visual_pasta`: pasta de efeitos visuais da agência, com subpastas `luz`, `glitch` e `queimado` (vídeos curtos de fundo preto). O efeito entra sobre a imagem no corte, misturado em "tela" (o preto não muda nada) com opacidade `sobreposicao_opacidade` (0,45), e o quadro mais claro dele cai no golpe. Procure uma pasta `visual` junto dos brutos ou pergunte; sem ela, `luz`, `glitch` e `queimado` caem nos equivalentes feitos por filtro.
 
 ## Repertório (D01) na rota local
 
@@ -56,9 +59,12 @@ O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 
 | Zoom In / Zoom Out | `transicao`: `zoom_in`, `zoom_out` |
 | Fade In/Out | `transicao`: `fade` |
 | Flash | `transicao`: `flash` |
-| Reflexo de luz / Brilho | `transicao`: `brilho` |
-| Blur (Desfoque) | `transicao`: `desfoque` |
-| Flash com falha | `transicao`: `flash_falha` |
+| Reflexo de luz / Brilho | `transicao`: `luz` (reflexo de luz real da `visual_pasta`; sem ela, `brilho`, um realce feito por filtro) |
+| Blur (Desfoque) | `transicao`: `desfoque` (entrada) ou `desfoque_passagem` (blur entre os dois clipes) |
+| Flash com falha / glitch | `transicao`: `glitch` (glitch real da `visual_pasta`; sem ela, `flash_falha`) |
+| Combinar | `transicao`: `combinar` (dissolve entre os dois clipes) |
+| Radial Blur | `transicao`: `zoom_passagem` (passagem com zoom; o mais próximo, não é o mesmo efeito) |
+| Outras passagens | `deslizar`, `pixel`, `queimado` (film burn da `visual_pasta`), `chicote` (passagem com escala; pesada, uma por vídeo) |
 | Câmera de mão | `efeito`: `camera_de_mao` |
 | Obturador lento | `efeito`: `obturador_lento` |
 | Sobreposição negativa | `efeito`: `negativo` (2 quadros no golpe) |
@@ -66,7 +72,6 @@ O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 
 | Swoosh, Woosh, Swish, Shun | `sfx`: `swoosh` (da `sfx_pasta` ou sintetizado; o pico cai no corte) |
 | Pop, Click Sound, Glitch, Wind Noise | `sfx`: `pop`, `click`, `glitch`, `vento` (da `sfx_pasta` ou sintetizados) |
 | Typing, Typewriting | `sfx`: `typing`, `typewriting` (só com `sfx_pasta`) |
-| Combinar, Radial Blur | sem equivalente: o render avisa e deixa de fora |
 
 Sem `sfx_pasta`, os efeitos sonoros são sintetizados pelo ffmpeg e soam simples. Use com moderação: um por transição forte, não em todo corte.
 
@@ -81,4 +86,4 @@ Templates nossos, editáveis: estrutura, ritmo e efeitos, sem fixar a duração 
 
 ## Conferir
 
-Antes de entregar: `ffprobe` (duração 1080x1920, áudio presente) e uma folha de quadros (`ffmpeg -i video.mp4 -vf "fps=1,scale=135:-1,tile=15x1" -frames:v 1 folha.jpg`) olhada de fato: o produto tem que aparecer inteiro e perto do centro em todos os clipes; se algum ficar cortado ou perto demais, informe `inicio` de um momento melhor daquele bruto e renderize de novo. Entregue o caminho do MP4 e o que foi aplicado. Não faz: texto e legenda, recorte de pessoa sobre fundo, transição com dissolução (Combinar), Radial Blur.
+Antes de entregar: `ffprobe` (duração 1080x1920, áudio presente) e uma folha de quadros (`ffmpeg -i video.mp4 -vf "fps=1,scale=135:-1,tile=15x1" -frames:v 1 folha.jpg`) olhada de fato: o produto tem que aparecer inteiro e perto do centro em todos os clipes; se algum ficar cortado ou perto demais, informe `inicio` de um momento melhor daquele bruto e renderize de novo. Entregue o caminho do MP4 e o que foi aplicado. Não faz: texto e legenda, recorte de pessoa sobre fundo, Radial Blur de verdade (usa `zoom_passagem`).

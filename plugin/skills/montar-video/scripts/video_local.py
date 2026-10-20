@@ -488,8 +488,37 @@ SFX = {  # (fonte lavfi, quanto começa antes do corte em s)
     "vento": ("anoisesrc=d=0.8:c=brown:a=0.5:r=44100,lowpass=f=500,afade=t=in:d=0.4,afade=t=out:st=0.4:d=0.4,volume=6dB", 0.4),
 }
 SFX.update({"woosh": SFX["swoosh"], "swish": SFX["swoosh"], "shun": SFX["swoosh"]})
-SFX_DA_TRANSICAO = {"zoom_in": "swoosh", "zoom_out": "swoosh", "desfoque": "swoosh", "flash_falha": "glitch"}
-SEM_EQUIVALENTE = {"combinar", "radial_blur"}
+SFX_DA_TRANSICAO = {"zoom_in": "swoosh", "zoom_out": "swoosh", "desfoque": "swoosh", "flash_falha": "glitch",
+                    "zoom_passagem": "swoosh", "desfoque_passagem": "swoosh", "deslizar": "swoosh", "chicote": "swoosh",
+                    "pixel": "glitch", "glitch": "glitch", "queimado": "swoosh"}
+SEM_EQUIVALENTE = set()
+
+# Transições entre dois clipes (os dois se sobrepõem; o meio da transição cai no corte): nome -> (xfade, quadros).
+# Nativas do ffmpeg, rápidas. "chicote" é uma expressão do xfade-easing (ver XFADE_EASING abaixo), pesada:
+# calculada em meia resolução, numa thread só (a expressão guarda valores em st()/ld(), que se embaralham entre
+# threads e viram ruído) e no máximo uma por vídeo.
+XFADE = {
+    "combinar": ("fade", 10),            # Combinar da Vitória (dissolve suave)
+    "desfoque_passagem": ("hblur", 8),   # passagem com desfoque horizontal
+    "zoom_passagem": ("zoomin", 8),      # passagem com zoom; o mais perto do Radial Blur
+    "radial_blur": ("zoomin", 8),
+    "deslizar": ("smoothup", 8),
+    "pixel": ("pixelize", 8),
+    "chicote": ("custom", 8),
+}
+# xfade-easing, (c) Raymond Luckhurst, licença MIT, https://github.com/scriptituk/xfade-easing (ver TERCEIROS.md):
+# easing cubic-in-out + gl-transition DirectionalScaled (empurrão com escala, tipo "whip pan")
+XFADE_EASING = ("st(0,if(lt(P,0.5),4*P^3,1-4*(1-P)^3));"
+                "st(1,0);st(2,1);st(3,0.7);st(4,0);st(5,1-ld(0));st(3,1-(1-1/ld(3))*sin(ld(5)*PI));"
+                "st(5,pow(sin(ld(5)*PI/2),3));st(1,X/W+ld(5)*sgn(ld(1)));st(2,1-Y/H+ld(5)*sgn(ld(2)));"
+                "st(5,(mod(ld(1),1)-0.5)*ld(3)+0.5);st(6,(mod(ld(2),1)-0.5)*ld(3)+0.5);"
+                "if(between(ld(5),0,1)*between(ld(6),0,1),st(5,ld(5)*W);st(6,(1-ld(6))*H);"
+                "if(between(ld(1),0,1)*between(ld(2),0,1),ifnot(PLANE,a0(ld(5),ld(6)),ifnot(1-PLANE,a1(ld(5),ld(6)),"
+                "ifnot(2-PLANE,a2(ld(5),ld(6)),a3(ld(5),ld(6))))),ifnot(PLANE,b0(ld(5),ld(6)),ifnot(1-PLANE,b1(ld(5),ld(6)),"
+                "ifnot(2-PLANE,b2(ld(5),ld(6)),b3(ld(5),ld(6)))))),ifnot(PLANE,max(ld(4)*255,0),if(3-PLANE,127,gte(ld(4),0)*255)))")
+# Efeitos de sobreposição da `visual_pasta` (fundo preto, mistura "tela"): o ponto mais claro cai no corte.
+# Sem a pasta, cai no equivalente feito por filtro.
+SOBREPOSICOES = {"luz": "brilho", "glitch": "flash_falha", "queimado": "flash"}
 
 
 def _tempo(dur, vel, rampa):
@@ -508,14 +537,26 @@ def _tempo(dur, vel, rampa):
 
 
 def _sons(pasta, nome):
-    """Arquivos de um efeito sonoro no pacote: `pasta/nome/*` (várias versões) ou `pasta/nome.*`."""
+    """Arquivos de um efeito (som ou sobreposição) no pacote: `pasta/nome/*` (várias versões) ou `pasta/nome.*`."""
     if not pasta:
         return []
-    audio = (".wav", ".mp3", ".m4a", ".ogg", ".aac", ".flac")
+    audio = (".wav", ".mp3", ".m4a", ".ogg", ".aac", ".flac", ".mp4", ".mov", ".webm")
     sub = os.path.join(pasta, nome)
     if os.path.isdir(sub):
         return sorted(os.path.join(sub, f) for f in os.listdir(sub) if f.lower().endswith(audio))
     return sorted(os.path.join(pasta, f) for f in os.listdir(pasta) if os.path.splitext(f)[0] == nome and f.lower().endswith(audio))
+
+
+def _pico_visual(arquivo):
+    """Segundo do quadro mais claro de uma sobreposição: é ele que cai no corte."""
+    if arquivo not in _PICOS:
+        out = subprocess.run(["ffmpeg", "-v", "error", "-i", arquivo, "-an", "-vf",
+                              "scale=64:-2,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-", "-f", "null", "-"],
+                             capture_output=True, text=True).stdout
+        tempos = [float(x.split("pts_time:")[1].split()[0]) for x in out.splitlines() if "pts_time:" in x]
+        brilho = [float(x.split("=")[1]) for x in out.splitlines() if "YAVG=" in x]
+        _PICOS[arquivo] = tempos[max(range(len(brilho)), key=lambda i: brilho[i])] if brilho else 0.0
+    return _PICOS[arquivo]
 
 
 _PICOS = {}
@@ -558,7 +599,8 @@ def _nivel_musica(musica, t, volume=1.0):
 
 def _trecho(idx, c, dur, p, w, h, transicao, avisos, pulsos=(), velocidade=1.0, enq=None):
     """Filtro de um clipe: recorte do bruto (seguindo o produto, com `enq`), velocidade com rampa e
-    quadros interpolados, zoom com pulsos nos golpes de dentro do clipe, transição de entrada e efeito."""
+    quadros interpolados, zoom com pulsos nos golpes de dentro do clipe, transição de entrada e efeito.
+    `dur` já inclui a sobra para as transições entre clipes (`XFADE`)."""
     fonte, lento = _tempo(dur, velocidade, p.get("rampa"))
     origem = float(c.get("inicio", 0))
     disp = _duracao(c["arquivo"])
@@ -577,7 +619,8 @@ def _trecho(idx, c, dur, p, w, h, transicao, avisos, pulsos=(), velocidade=1.0, 
     if disp < origem + fonte:  # bruto curto: segura o último quadro em vez de cortar o tempo
         f += f",tpad=stop_mode=clone:stop_duration={dur:.3f},trim=duration={dur:.3f}"
     for nome in [transicao] + list(c.get("efeitos") or ([c["efeito"]] if c.get("efeito") else [])):
-        if nome in SEM_EQUIVALENTE or (nome not in TRANSICOES and nome not in EFEITOS):
+        if nome in SEM_EQUIVALENTE or (nome not in TRANSICOES and nome not in EFEITOS and nome not in XFADE
+                                       and nome not in SOBREPOSICOES):
             avisos.append(f"{os.path.basename(c['arquivo'])}: '{nome}' sem equivalente na rota local, ficou de fora")
     quadros = max(1, round(dur * FPS))
     z = "1"
@@ -645,9 +688,14 @@ def render(plano_path):
 
     flash_modo = p.get("flash_no_corte", "gancho")
     giro = p.get("transicoes") or []
+    usou_chicote, sobreposicoes = False, []
     avisos, sfx, cortes_v, usado, escolhas = [], [], set(), {}, []
     avisos.extend(avisos_musica)
     pasta_sfx = absol(p["sfx_pasta"]) if p.get("sfx_pasta") else None
+    pasta_visual = absol(p["visual_pasta"]) if p.get("visual_pasta") else None
+    if pasta_visual and not os.path.isdir(pasta_visual):
+        avisos.append(f"pasta de efeitos visuais não encontrada ({pasta_visual}); usei os feitos por filtro")
+        pasta_visual = None
     if pasta_sfx and not os.path.isdir(pasta_sfx):
         avisos.append(f"pasta de efeitos sonoros não encontrada ({pasta_sfx}); usei os sintetizados")
         pasta_sfx = None  # usado: trechos já usados de cada bruto
@@ -670,12 +718,41 @@ def render(plano_path):
                 clipes = _ordem_contraste(clipes)
             partes = _cortes(clipes, pb, grade, d, t0, golpes, bi == 0)
             bordas = {round(t0 + a0, 3) for _, a0, _ in partes}
+            # transição de cada corte antes de montar: a do corte seguinte decide quanto o clipe sobra no fim
+            transs = []
             for k, (c, a0, a1) in enumerate(partes):
+                flash = flash_modo == "todos" or (flash_modo == "gancho" and bi == 0 and pi == 0 and k == 1) \
+                    or (flash_modo == "blocos" and k == 0 and bi > 0)
+                if "transicao" in c:
+                    trans = c["transicao"]
+                elif k == 0 and not (bi > 0 and flash):
+                    trans = "corte"
+                elif flash:
+                    trans = pb.get("transicao_gancho", "flash") if flash_modo == "gancho" else "flash"
+                else:
+                    trans = giro[(k - 1) % len(giro)] if giro else "corte"
+                if trans in SOBREPOSICOES and not _sons(pasta_visual, trans):
+                    trans = SOBREPOSICOES[trans]  # sem o pacote visual, o equivalente por filtro
+                if trans == "chicote" and usou_chicote:
+                    trans = "zoom_passagem"  # a expressão é pesada: uma por vídeo
+                usou_chicote |= trans == "chicote"
+                transs.append(trans)
+            quadros = [round((a1 - a0) * FPS) for _, a0, a1 in partes]
+            sobre = [XFADE[t][1] if k > 0 and t in XFADE else 0 for k, t in enumerate(transs)] + [0]
+            for k in range(len(partes)):  # clipe curto demais para as duas sobreposições: o corte fica seco
+                while quadros[k] - (sobre[k] + sobre[k + 1]) // 2 < 4 and (sobre[k] or sobre[k + 1]):
+                    m = k + 1 if sobre[k + 1] else k
+                    sobre[m], transs[m] = 0, "corte"
+            pedacos = []
+            for k, (c, a0, a1) in enumerate(partes):
+                trans = transs[k]
+                antes, depois = sobre[k] // 2 / FPS, sobre[k + 1] // 2 / FPS
                 vel = 1.0
                 if pb.get("lento") and not c.get("continuo") and a1 - a0 >= pb.get("lento_min", 1.2):
                     vel = float(pb["lento"])  # clipe longo respira em câmera lenta leve
                 vel = float(c.get("velocidade", vel))
-                fonte = _tempo(a1 - a0, vel, pb.get("rampa"))[0]
+                dur_total = antes + (a1 - a0) + depois
+                fonte = _tempo(dur_total, vel, pb.get("rampa"))[0]
                 alvo = (float(pb.get("tamanho_alvo", 0.5)), float(pb.get("zoom_teto", 1.35)))
                 enquadrar = pb.get("enquadrar") and c.get("enquadrar", True) and not c.get("continuo")
                 if c.get("continuo"):
@@ -689,6 +766,8 @@ def render(plano_path):
                         avisos.append(f"{os.path.basename(c['arquivo'])}: brutos insuficientes, trecho repetido")
                     else:
                         c = {**c, "inicio": novo}
+                elif antes:  # trecho escolhido por quem planejou: a sobra da transição vem de antes dele
+                    c = {**c, "inicio": max(0.0, float(c["inicio"]) - antes)}
                 usado.setdefault(c["arquivo"], []).append((float(c.get("inicio", 0)), float(c.get("inicio", 0)) + fonte))
                 enq = None
                 if enquadrar:
@@ -696,24 +775,16 @@ def render(plano_path):
                     enq = r and {"crop": r[0], "zoom": round(r[1], 2)}
                 escolhas.append({"arquivo": os.path.basename(c["arquivo"]), "no_video": round(t0 + a0, 2),
                                  "inicio": c.get("inicio"), "duracao": round(a1 - a0, 2), "velocidade": vel,
-                                 "enquadre": enq and enq["zoom"]})
+                                 "enquadre": enq and enq["zoom"], "transicao": trans if k > 0 or bi > 0 else None})
                 pulsos = []
                 if golpes and pb.get("pulsos") and not c.get("continuo"):
                     fortes = sorted((f for _, f in golpes), reverse=True)
                     corte = fortes[max(0, len(bordas) - 1)] if len(fortes) >= len(bordas) else 0
-                    pulsos = [g - t0 - a0 for g, f in golpes if t0 + a0 + 0.25 < g < t0 + a1 - 0.15 and f >= corte]
-                flash = flash_modo == "todos" or (flash_modo == "gancho" and bi == 0 and pi == 0 and k == 1) \
-                    or (flash_modo == "blocos" and k == 0 and bi > 0)
-                if "transicao" in c:
-                    trans = c["transicao"]
-                elif k == 0 and not (bi > 0 and flash):
-                    trans = "corte"
-                elif flash:
-                    trans = "flash"
-                else:
-                    trans = giro[(k - 1) % len(giro)] if giro else "corte"
+                    pulsos = [g - t0 - a0 + antes for g, f in golpes if t0 + a0 + 0.25 < g < t0 + a1 - 0.15 and f >= corte]
                 if k > 0 or bi > 0:
                     cortes_v.add(round(t0 + a0, 3))
+                if trans in SOBREPOSICOES and _sons(pasta_visual, trans):
+                    sobreposicoes.append((trans, t0 + a0))
                 nome_sfx = c.get("sfx") or (p.get("sfx_nos_cortes") if k > 0 else None)
                 if "sfx" not in c and not nome_sfx and pb.get("sfx_nas_transicoes"):
                     nome_sfx = SFX_DA_TRANSICAO.get(trans)  # o som acompanha a transição visual
@@ -723,17 +794,60 @@ def render(plano_path):
                     else:
                         avisos.append(f"efeito sonoro '{nome_sfx}' sem equivalente na rota local, ficou de fora")
                 rot = f"b{bi}p{pi}c{k}"
-                filtros.append(_trecho(entra(c["arquivo"]), c, a1 - a0, pb, w, h, trans, avisos, pulsos, vel, enq) + f"[{rot}]")
-                nomes.append(f"[{rot}]")
-            filtros.append(f"{''.join(nomes)}concat=n={len(nomes)}:v=1:a=0,"
+                entrada = "corte" if trans in XFADE or trans in SOBREPOSICOES else trans
+                filtros.append(_trecho(entra(c["arquivo"]), c, dur_total, pb, w, h, entrada, avisos, pulsos, vel, enq)
+                               + f"[{rot}]")
+                # partes do clipe: começo (entra na transição), corpo e fim (sai na transição seguinte)
+                n_total = round(dur_total * FPS)
+                cortes_k = [0] + ([sobre[k]] if sobre[k] else []) + ([n_total - sobre[k + 1]] if sobre[k + 1] else []) + [n_total]
+                nomes_k = [f"{rot}s{j}" for j in range(len(cortes_k) - 1)]
+                if len(nomes_k) == 1:
+                    nomes_k = [rot]
+                else:
+                    filtros.append(f"[{rot}]split={len(nomes_k)}" + "".join(f"[{n}x]" for n in nomes_k))
+                    for n, ini_q, fim_q in zip(nomes_k, cortes_k, cortes_k[1:]):
+                        filtros.append(f"[{n}x]trim=start_frame={ini_q}:end_frame={fim_q},setpts=PTS-STARTPTS[{n}]")
+                cabeca = nomes_k[0] if sobre[k] else None
+                corpo = nomes_k[1 if sobre[k] else 0]
+                if cabeca:  # transição: fim do clipe anterior com o começo deste
+                    xf, nq = XFADE[trans]
+                    a_, b_ = pedacos.pop(), cabeca
+                    if xf == "custom":
+                        meia = f"{w // 2 // 2 * 2}:{h // 2 // 2 * 2}"
+                        filtros.append(f"[{a_}]scale={meia}[{rot}xa];[{b_}]scale={meia}[{rot}xb];[{rot}xa][{rot}xb]"
+                                       f"xfade=transition=custom:duration={nq / FPS:.4f}:offset=0:expr='{XFADE_EASING}':threads=1,"
+                                       f"scale={w}:{h},setsar=1[{rot}x]")
+                    else:
+                        filtros.append(f"[{a_}][{b_}]xfade=transition={xf}:duration={nq / FPS:.4f}:offset=0[{rot}x]")
+                    pedacos.append(f"{rot}x")
+                pedacos.append(corpo)
+                if sobre[k + 1]:
+                    pedacos.append(nomes_k[-1])
+            filtros.append(f"{''.join(f'[{n}]' for n in pedacos)}concat=n={len(pedacos)}:v=1:a=0,"
                            f"tpad=stop_mode=clone:stop_duration={d:.3f},trim=duration={d:.3f}[b{bi}p{pi}]")
             filtros.append(f"[{ultimo}][b{bi}p{pi}]overlay={x}:{y}[b{bi}o{pi}]")
             ultimo = f"b{bi}o{pi}"
         filtros.append(f"[{ultimo}]trim=duration={d:.3f},setpts=PTS-STARTPTS,format=yuv420p[b{bi}]")
         nomes_blocos.append(f"[b{bi}]")
     filtros.append(f"{''.join(nomes_blocos)}concat=n={len(nomes_blocos)}:v=1:a=0[v]")
+    if sobreposicoes:
+        # camada só com as sobreposições (preto no resto) misturada em "tela": o preto não muda a imagem
+        filtros.append(f"color=c=black:s={W}x{H}:r={FPS}:d={total:.3f},format=gbrp[ov0]")
+        usados_v = {}
+        for j, (nome, quando) in enumerate(sobreposicoes):
+            arqs = _sons(pasta_visual, nome)
+            arq = arqs[usados_v.get(nome, 0) % len(arqs)]
+            usados_v[nome] = usados_v.get(nome, 0) + 1
+            ini_ov = max(0.0, quando - _pico_visual(arq))
+            filtros.append(f"[{entra(arq)}:v]scale={W}:{H},setsar=1,fps={FPS},format=gbrp,setpts=PTS-STARTPTS+{ini_ov:.3f}/TB[ovs{j}]")
+            filtros.append(f"[ov{j}][ovs{j}]overlay=eof_action=pass:format=gbrp[ov{j + 1}]")
+        op = float(p.get("sobreposicao_opacidade", 0.45))
+        filtros.append(f"[v]format=gbrp[vr];[vr][ov{len(sobreposicoes)}]blend=all_mode=screen:all_opacity={op}:shortest=1,"
+                       f"format=yuv420p[vfinal]")
+    else:
+        filtros.append("[v]null[vfinal]")
 
-    mapa, audios = ["-map", "[v]"], []
+    mapa, audios = ["-map", "[vfinal]"], []
     if voz:
         iv = entra(absol(voz["arquivo"]), "-ss", f"{float(voz.get('inicio', 0)):.3f}")
         filtros.append(f"[{iv}:a]atrim=duration={total:.3f},asetpts=PTS-STARTPTS,"
@@ -792,6 +906,13 @@ def render(plano_path):
             "musica_inicio": round(m_ini, 3) if musica else None, "corte_no": corte_no, "sincronia": sinc,
             "cortes": sorted(cortes_v), "avisos": avisos, "clipes": escolhas, "efeitos_sonoros": niveis_sfx,
             "blocos": [{"layout": b.get("layout", "cheio"), "inicio": t0, "duracao": d} for b, t0, d in blocos]}
+
+
+def _amostras_quadro(arquivo, t):
+    """Cor média (RGB) do quadro em `t`."""
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.3f}", "-i", arquivo, "-frames:v", "1", "-vf", "scale=1:1",
+                          "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+    return raw[:3]
 
 
 def teste():
@@ -879,6 +1000,23 @@ def teste():
     passou = cabe == (3.62, 3.62) and curta == (0.43, 3.62)
     ok &= passou
     print(f"{'ok ' if passou else 'ERRO'} início da música: pula a introdução quando cabe {cabe}, avisa quando não cabe {curta}")
+    # transições entre clipes: com sobreposição (xfade), o vídeo tem que sair com o número exato de quadros
+    with tempfile.TemporaryDirectory() as d:
+        for n, cor in enumerate(("red", "blue", "green")):
+            _ffmpeg(["-f", "lavfi", "-i", f"color=c={cor}:s=180x320:r=30:d=3", "-pix_fmt", "yuv420p",
+                     os.path.join(d, f"c{n}.mp4")])
+        plano = {"duracao": 3, "saida": "x.mp4", "clipes": [
+            {"arquivo": "c0.mp4", "inicio": 0.5, "segundos": 1}, {"arquivo": "c1.mp4", "inicio": 0.5, "segundos": 1, "transicao": "combinar"},
+            {"arquivo": "c2.mp4", "inicio": 0.5, "segundos": 1, "transicao": "desfoque_passagem"}]}
+        with open(os.path.join(d, "p.json"), "w") as f:
+            json.dump(plano, f)
+        r = render(os.path.join(d, "p.json"))
+        quadros = int(subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries",
+                                      "stream=nb_read_frames", "-of", "csv=p=0", r["saida"]], capture_output=True, text=True).stdout)
+        meio = list(_amostras_quadro(r["saida"], 1.0))  # no corte, metade de cada cor: vermelho e azul misturados
+        passou = quadros == 90 and meio[0] > 60 and meio[2] > 60
+        ok &= passou
+        print(f"{'ok ' if passou else 'ERRO'} transições: {quadros} quadros de 90; no meio do combinar RGB {meio}")
     # rampa: a soma do tempo de saída tem que dar a duração do clipe
     for dur, vel in ((1.0, 0.5), (2.5, 0.4)):
         fonte, _ = _tempo(dur, vel, True)

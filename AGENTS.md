@@ -37,6 +37,12 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
 - Swoosh real tem grave: a auditoria de corte no grave feita no mix final cai (8 de 10 na v11) sem que o corte tenha mudado. Medir a sincronia na música, não no mix.
 - Pacotes baixados (YouTube) ficam fora do repositório público; o plugin só lê uma pasta local (`sfx_pasta`).
 
+**Efeitos visuais**
+- Transições entre clipes com `xfade` (nativo do ffmpeg): cada clipe sobra meia transição antes e depois, é partido em começo, corpo e fim, e o meio da passagem cai no golpe. Conferir o total de quadros (o `teste` cobre).
+- Expressões do xfade-easing rodam no ffmpeg comum, mas custam cerca de 50 s por transição em 1080x1920. Por isso: meia resolução, uma por vídeo e `threads=1` no filtro. Elas guardam valores em `st()`/`ld()`, que viram ruído com várias threads (o README deles avisa; aqui saiu ruído antes do ajuste).
+- Sobreposição de fundo preto (luz, glitch, film burn) mistura em "tela" em RGB (`gbrp`). Em YUV a mistura mexe na cor.
+- Pacotes do YouTube: tirar quadros com texto ("TRANSITION 2") e fundo verde. Formas abstratas podem ser esticadas do 16:9 para o 9:16; cortar o centro perde a luz, que fica nas bordas.
+
 **Escolha do trecho e enquadramento**
 - "Mais movimento" escolhe a mão girando o produto perto da câmera.
   - Produto: centralizado, tamanho perto do alvo, sem encostar na borda.
