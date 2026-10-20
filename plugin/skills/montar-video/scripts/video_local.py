@@ -156,7 +156,8 @@ def conferir_musica(musica, p):
     """A música antes do plano: BPM, se corta no grave ou nos golpes do som todo, onde o vídeo começa e se a
     faixa serve. `p` é a receita com o plano (usa `duracao`, `musica_inicio`, `golpe_piso`, `corte_max`)."""
     auto = p.get("musica_inicio") in (None, "auto")
-    analise = 0.0 if auto else float(p["musica_inicio"])
+    pedido = None if auto else float(p["musica_inicio"])
+    analise = 0.0 if auto else max(0.0, pedido - 0.5)  # meio segundo antes: o golpe bem no ponto pedido aparece
     total, dur = _duracao(musica), float(p.get("duracao", 15))
     info = batidas(musica, analise, 90)
     piso, vao = float(p.get("golpe_piso", 0.6)), float(p.get("corte_max", 2.5))
@@ -173,7 +174,7 @@ def conferir_musica(musica, p):
                           "de outra edição). Peça a música completa ou um vídeo mais curto")
     else:
         # trecho pedido: começa no primeiro golpe forte a partir dele (o golpe, não a grade de BPM)
-        inicio = next((g for g, f in marcas if f >= piso and g >= -0.05), info["primeira"])
+        inicio = next((g for g, f in marcas if f >= piso and g >= pedido - analise - 0.05), pedido - analise)
     if total - (analise + inicio) < dur - 0.05:
         avisos.append(f"a música acaba {dur - (total - analise - inicio):.1f} s antes do vídeo; o final fica sem som")
     return {"bpm": info["bpm"], "corte_no": corte_no, "inicio": round(analise + inicio, 3),
