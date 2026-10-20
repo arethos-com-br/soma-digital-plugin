@@ -1,11 +1,25 @@
 {
-  "descricao": "Anúncio com quem fala (exemplo A02): cima-baixo com a fala em cima e o produto embaixo, grade de 4 faixas, depois produto em tela cheia. A voz segue contínua; a música fica de fundo.",
+  "descricao": "Anúncio com quem fala (exemplo A02): cima-baixo com a fala em cima e o produto embaixo, grade de 4 faixas, depois produto em tela cheia. A voz segue contínua; a música fica de fundo. Os cortes do produto caem nos golpes da música de fundo (1,2 a 3 s por clipe).",
   "no_ritmo": true,
   "flash_no_corte": "blocos",
   "batidas_por_corte": 4,
   "blocos": [
-    {"layout": "cima-baixo", "segundos": 15},
-    {"layout": "faixas", "n": 4, "segundos": 8},
-    {"layout": "cheio", "batidas_por_corte": 4}
-  ]
+    {
+      "layout": "cima-baixo",
+      "segundos": 15
+    },
+    {
+      "layout": "faixas",
+      "n": 4,
+      "segundos": 8
+    },
+    {
+      "layout": "cheio",
+      "batidas_por_corte": 4
+    }
+  ],
+  "cortar_nos_golpes": true,
+  "corte_min": 1.2,
+  "corte_max": 3.0,
+  "golpe_forte": 0.65
 }

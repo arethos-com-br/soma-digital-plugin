@@ -159,7 +159,7 @@ def _paineis(bloco, p):
     raise SystemExit(f"layout desconhecido: {lay}")
 
 
-def _cortes(clipes, p, grade, total, t0=0.0, golpes=None):
+def _cortes(clipes, p, grade, total, t0=0.0, golpes=None, abertura=True):
     """Tempos (início, fim) de cada clipe no painel.
 
     Com `golpes` (picos da música em tempo de vídeo) e `cortar_nos_golpes`, cada corte cai no próximo golpe
@@ -176,7 +176,7 @@ def _cortes(clipes, p, grade, total, t0=0.0, golpes=None):
             n_seg = total - t
         elif golpes and p.get("cortar_nos_golpes") and not c.get("batidas"):
             agora = t0 + t
-            lo, hi = (p.get("gancho_min", 1.5), p.get("gancho_max", 4.0)) if i == 0 else (cmin, cmax)
+            lo, hi = (p.get("gancho_min", 1.5), p.get("gancho_max", 4.0)) if i == 0 and abertura else (cmin, cmax)
             cand = [g for g in golpes if agora + lo - 1e-3 <= g[0] <= agora + hi + 1e-3]
             fortes = [g for g in cand if g[1] >= forte]
             if fortes:
@@ -217,11 +217,12 @@ EFEITOS = {
     "negativo": "negate=enable='lt(t,0.07)'",
 }
 SFX = {  # (fonte lavfi, quanto começa antes do corte em s)
-    "swoosh": ("anoisesrc=d=0.4:c=pink:a=0.6:r=44100,highpass=f=700,lowpass=f=5000,afade=t=in:d=0.28,afade=t=out:st=0.28:d=0.12", 0.28),
-    "pop": ("sine=f=520:d=0.07:sample_rate=44100,afade=t=out:st=0.01:d=0.06", 0.0),
-    "click": ("sine=f=2600:d=0.02:sample_rate=44100,afade=t=out:d=0.02", 0.0),
+    # ganhos medidos para que todos tenham pico perto de -6 dBFS antes de `sfx_volume`
+    "swoosh": ("anoisesrc=d=0.4:c=pink:a=0.6:r=44100,highpass=f=700,lowpass=f=5000,afade=t=in:d=0.28,afade=t=out:st=0.28:d=0.12,volume=9dB", 0.28),
+    "pop": ("sine=f=520:d=0.07:sample_rate=44100,afade=t=out:st=0.01:d=0.06,volume=12dB", 0.0),
+    "click": ("sine=f=2600:d=0.02:sample_rate=44100,afade=t=out:d=0.02,volume=12dB", 0.0),
     "glitch": ("anoisesrc=d=0.15:a=0.5:r=44100,acrusher=bits=3:samples=30:mix=1", 0.0),
-    "vento": ("anoisesrc=d=0.8:c=brown:a=0.5:r=44100,lowpass=f=500,afade=t=in:d=0.4,afade=t=out:st=0.4:d=0.4", 0.4),
+    "vento": ("anoisesrc=d=0.8:c=brown:a=0.5:r=44100,lowpass=f=500,afade=t=in:d=0.4,afade=t=out:st=0.4:d=0.4,volume=6dB", 0.4),
 }
 SFX.update({"woosh": SFX["swoosh"], "swish": SFX["swoosh"], "shun": SFX["swoosh"]})
 SEM_EQUIVALENTE = {"combinar", "radial_blur", "typing", "typewriting"}
@@ -271,14 +272,14 @@ def render(plano_path):
         if p.get("no_ritmo", True):
             info = batidas(musica, m_ini, 90)
             grade = 60 / info["bpm"]
-            pulo = 0
+            inicio_rel = info["primeira"]  # sem auto: o vídeo começa na primeira batida
             if auto:  # começa no primeiro golpe forte que ainda deixa música para o vídeo inteiro
-                sobra = _duracao(musica) - float(p.get("duracao", 15)) - info["primeira"]
-                pulo = next((k for k, f in enumerate(info["forca_meias"]) if f >= 0.5 and k * grade / 2 <= sobra), 0)
-                info["forca_meias"] = info["forca_meias"][pulo:]
-            if _duracao(musica) - (m_ini + info["primeira"] + pulo * grade / 2) < float(p.get("duracao", 15)) - 0.05:
+                sobra = _duracao(musica) - float(p.get("duracao", 15))
+                inicio_rel = next((g for g, f in info["golpes"] if f >= p.get("golpe_forte", 0.65) and g <= sobra),
+                                  info["primeira"])
+            if _duracao(musica) - (m_ini + inicio_rel) < float(p.get("duracao", 15)) - 0.05:
                 print("aviso: a música acaba antes do vídeo; o final fica sem som", file=sys.stderr)
-            m_ini += info["primeira"] + pulo * grade / 2  # o vídeo começa numa batida
+            m_ini += inicio_rel
             golpes = [[round(g - (m_ini - analise), 4), f] for g, f in info["golpes"] if g - (m_ini - analise) > -0.02]
 
     # duração de cada bloco: em batidas (encaixa na música) ou segundos; o último pode preencher até `duracao`
@@ -309,7 +310,7 @@ def render(plano_path):
 
     flash_modo = p.get("flash_no_corte", "gancho")
     giro = p.get("transicoes") or []
-    avisos, sfx, cortes_v = [], [], []
+    avisos, sfx, cortes_v, usado = [], [], set(), {}  # usado: até onde cada bruto já apareceu
     for bi, (b, t0, d) in enumerate(blocos):
         rets = _paineis(b, p)
         paineis = b.get("paineis") or []
@@ -324,7 +325,14 @@ def render(plano_path):
                 if c.get("continuo") and voz and os.path.abspath(c["arquivo"]) == absol(voz["arquivo"]):
                     c["inicio"] = float(voz.get("inicio", 0)) + t0
             nomes = []
-            for k, (c, a0, a1) in enumerate(_cortes(clipes, {**p, **b}, grade, d, t0, golpes)):
+            for k, (c, a0, a1) in enumerate(_cortes(clipes, {**p, **b}, grade, d, t0, golpes, bi == 0)):
+                chave = (c["arquivo"], float(c.get("inicio", 0)))
+                if chave in usado and not c.get("continuo"):  # bruto reusado: continua de onde parou, sem repetir
+                    c = {**c, "inicio": usado[chave]}
+                    if usado[chave] + (a1 - a0) > _duracao(c["arquivo"]):
+                        avisos.append(f"{os.path.basename(c['arquivo'])}: brutos insuficientes, trecho repetido")
+                        c["inicio"] = float(chave[1])
+                usado[chave] = float(c.get("inicio", 0)) + (a1 - a0)
                 flash = flash_modo == "todos" or (flash_modo == "gancho" and bi == 0 and pi == 0 and k == 1) \
                     or (flash_modo == "blocos" and k == 0 and bi > 0)
                 if "transicao" in c:
@@ -335,8 +343,8 @@ def render(plano_path):
                     trans = "flash"
                 else:
                     trans = giro[(k - 1) % len(giro)] if giro else "corte"
-                if (k > 0 or bi > 0) and pi == 0:
-                    cortes_v.append(round(t0 + a0, 3))
+                if k > 0 or bi > 0:
+                    cortes_v.add(round(t0 + a0, 3))
                 nome_sfx = c.get("sfx") or (p.get("sfx_nos_cortes") if k > 0 else None)
                 if nome_sfx:
                     if nome_sfx in SFX:
@@ -374,7 +382,7 @@ def render(plano_path):
                        f"aformat=sample_rates=44100:channel_layouts=stereo[sfx{k}]")
         audios.append(f"[sfx{k}]")
     if audios:
-        filtros.append(f"{''.join(audios)}amix=inputs={len(audios)}:normalize=0:duration=first[a]" if len(audios) > 1
+        filtros.append(f"{''.join(audios)}amix=inputs={len(audios)}:normalize=0:duration=longest[a]" if len(audios) > 1
                        else f"{audios[0]}anull[a]")
         mapa += ["-map", "[a]"]
     saida = absol(p.get("saida", "saida.mp4"))
@@ -394,7 +402,7 @@ def render(plano_path):
         print("aviso:", a, file=sys.stderr)
     return {"saida": saida, "duracao": round(total, 3), "bpm": info and info["bpm"],
             "musica_inicio": round(m_ini, 3) if musica else None, "sincronia": sinc,
-            "cortes": cortes_v, "avisos": avisos,
+            "cortes": sorted(cortes_v), "avisos": avisos,
             "blocos": [{"layout": b.get("layout", "cheio"), "inicio": t0, "duracao": d} for b, t0, d in blocos]}
 
 
