@@ -1,10 +1,14 @@
 {
-  "descricao": "Vitrine no ritmo da música (exemplo A01): gancho de 4 batidas, depois cada corte no primeiro golpe forte entre 1 e 3 batidas, zoom leve e flash no primeiro corte.",
+  "descricao": "Vitrine no ritmo da música (exemplo A01): o gancho vai até o primeiro golpe forte; depois cada corte cai num golpe da música (mínimo 0,45 s por clipe), com transições do repertório em giro, zoom leve e flash no primeiro corte.",
   "duracao": 15,
   "no_ritmo": true,
-  "gancho_batidas": 4,
-  "batidas_por_corte": [2, 1, 1],
-  "corte_janela": [1, 3],
+  "cortar_nos_golpes": true,
+  "gancho_min": 1.5,
+  "gancho_max": 4.0,
+  "corte_min": 0.45,
+  "corte_max": 2.5,
+  "golpe_forte": 0.65,
+  "transicoes": ["zoom_in", "corte", "desfoque", "corte", "zoom_out", "brilho"],
   "zoom": true,
   "zoom_max": 1.06,
   "flash_no_corte": "gancho"

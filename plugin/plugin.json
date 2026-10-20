@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "soma-digital",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Edição de vídeos sociais para a Soma Digital: planeja, edita os brutos do Drive no CapCut, propõe edições e acompanha tendências.",
   "author": {
     "name": "Arethos"
