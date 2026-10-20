@@ -16,6 +16,7 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
   - Golpe de banda larga pega caixa e chimbal.
 - Nada calibrado para uma música só. Limiar sempre relativo à própria faixa (percentil 95 dos golpes dela).
 - Fluxo de energia em log sem piso iguala o vazamento grave da caixa a um bumbo. Por isso o piso é metade da energia grave mediana da faixa.
+- Áudio tirado de um vídeo já editado não é a música: traz os efeitos sonoros e a voz daquela edição. O A01 abre com 3,5 s de efeito de transição e voz antes da batida, e o Reels saiu com um "glitch" sem nada na tela. O início automático pula até a batida em sequência; se a faixa útil for mais curta que o vídeo, o render avisa em vez de esconder.
 - Validar em três frentes: o `teste` (seis gêneros sintéticos com gabarito de bumbo e baixo), uma faixa real e os cortes de um exemplo da cliente.
 
 **Tempo e quadros**

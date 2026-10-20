@@ -136,6 +136,21 @@ def batidas(caminho, inicio=0.0, dur=60.0, bpm_min=70, bpm_max=180):
             "graves": graves(caminho, inicio, dur)}
 
 
+def _inicio_musica(marcas, piso, vao, sobra, primeira):
+    """Onde a música começa no vídeo: o primeiro golpe forte (acima de `piso`, o mesmo que ganha corte) seguido
+    de outros sem vão maior que `vao` nos 4 s seguintes, ou seja, onde a batida já está em sequência. Pula
+    introdução, voz e efeito sonoro solto (áudio tirado de um vídeo já editado traz os dele). Só vale início que
+    deixe música para o vídeo inteiro (até `sobra`). Devolve (início, onde a sequência começa de fato ou None)."""
+    fortes = [g for g, f in marcas if f >= piso]
+
+    def em_sequencia(g):
+        seg = [x for x in fortes if g <= x <= g + 4.0]
+        return len(seg) >= 3 and all(b - a <= vao for a, b in zip(seg, seg[1:])) and seg[-1] >= g + 4.0 - vao
+    cabe = [g for g in fortes if g <= sobra]
+    inicio = next((g for g in cabe if em_sequencia(g)), cabe[0] if cabe else primeira)
+    return inicio, next((g for g in fortes if em_sequencia(g)), None)
+
+
 def _receita(plano):
     """Junta a receita (template nosso) com o plano; blocos do plano sobrescrevem os da receita pelo índice."""
     base = {}
@@ -516,6 +531,7 @@ def render(plano_path):
     musica, voz = p.get("musica"), p.get("voz")
     auto = p.get("musica_inicio") in (None, "auto")
     m_ini, grade, info, golpes, corte_no = 0.0 if auto else float(p["musica_inicio"]), None, None, None, None
+    aviso_musica = None
     analise = m_ini
     if musica:
         musica = absol(musica)
@@ -528,11 +544,16 @@ def render(plano_path):
             ouvido = min(90.0, _duracao(musica) - m_ini)
             corte_no = "grave" if len(fortes_g) >= ouvido / float(p.get("corte_max", 2.5)) / 2 else "golpe"
             marcas = info["graves"] if corte_no == "grave" else info["golpes"]
-            if auto:  # começa no primeiro golpe forte que ainda deixa música para o vídeo inteiro
+            if auto:
                 sobra = _duracao(musica) - float(p.get("duracao", 15))
-                forcas = sorted(f for _, f in marcas)
-                p75 = forcas[int(0.75 * (len(forcas) - 1))] if forcas else 1.0
-                inicio_rel = next((g for g, f in marcas if f >= p75 and g <= sobra), info["primeira"])
+                inicio_rel, seq = _inicio_musica(marcas, float(p.get("golpe_piso", 0.6)), float(p.get("corte_max", 2.5)),
+                                                 sobra, info["primeira"])
+                vao = float(p.get("corte_max", 2.5))
+                if seq is not None and seq > inicio_rel + vao:
+                    aviso_musica = (f"a batida em sequência só começa em {m_ini + seq:.1f} s da música e dura "
+                                    f"{_duracao(musica) - m_ini - seq:.1f} s; para {float(p.get('duracao', 15)):g} s o vídeo "
+                                    f"abre com {seq - inicio_rel:.1f} s de introdução da faixa (voz ou efeito sonoro de outra "
+                                    "edição). Peça a música completa ou um vídeo mais curto")
             if _duracao(musica) - (m_ini + inicio_rel) < float(p.get("duracao", 15)) - 0.05:
                 print("aviso: a música acaba antes do vídeo; o final fica sem som", file=sys.stderr)
             m_ini += inicio_rel
@@ -566,7 +587,9 @@ def render(plano_path):
 
     flash_modo = p.get("flash_no_corte", "gancho")
     giro = p.get("transicoes") or []
-    avisos, sfx, cortes_v, usado, escolhas = [], [], set(), {}, []  # usado: trechos já usados de cada bruto
+    avisos, sfx, cortes_v, usado, escolhas = [], [], set(), {}, []
+    if aviso_musica:
+        avisos.append(aviso_musica)  # usado: trechos já usados de cada bruto
     for bi, (b, t0, d) in enumerate(blocos):
         rets = _paineis(b, p)
         paineis = b.get("paineis") or []
@@ -773,6 +796,12 @@ def teste():
             ok &= passou
             print(f"{'ok ' if passou else 'ERRO'} {nome:9s} bpm {bpm} -> {r['bpm']}; cortes no grave "
                   f"{len(no_som)}/{len(cortes)}; clipe médio {media:.2f} s")
+    # início da música: efeito sonoro solto em 0,43 s e a batida em sequência só a partir de 3,62 s (caso do A01)
+    marcas = [[0.43, 0.9]] + [[3.62 + k * 2 + d, 1.0] for k in range(6) for d in (0, 0.5)]
+    cabe, curta = _inicio_musica(marcas, 0.6, 2.5, 5.0, 0.1), _inicio_musica(marcas, 0.6, 2.5, 1.2, 0.1)
+    passou = cabe == (3.62, 3.62) and curta == (0.43, 3.62)
+    ok &= passou
+    print(f"{'ok ' if passou else 'ERRO'} início da música: pula a introdução quando cabe {cabe}, avisa quando não cabe {curta}")
     # rampa: a soma do tempo de saída tem que dar a duração do clipe
     for dur, vel in ((1.0, 0.5), (2.5, 0.4)):
         fonte, _ = _tempo(dur, vel, True)

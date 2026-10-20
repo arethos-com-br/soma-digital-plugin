@@ -6,7 +6,7 @@ Rodar: `py -B -I scripts/video_local.py render plano.json` no Windows (`python3`
 
 ## Música
 
-Arquivo de áudio ou vídeo com a música (a que indicarem, o áudio da trend baixado, ou extraída de um vídeo de referência). Sem `musica_inicio`, o vídeo começa no primeiro golpe forte da música (pula introdução calma); para outro trecho, informe o segundo e o vídeo começa na primeira batida depois dele. A detecção assume tempo constante; faixa só de voz não tem batida (use `"no_ritmo": false`).
+Arquivo de áudio ou vídeo com a música (a que indicarem, o áudio da trend baixado, ou extraída de um vídeo de referência). Deixe `musica_inicio` de fora (não use 0): o vídeo começa onde a batida já está em sequência, pulando introdução, voz e efeito sonoro solto. Informe o segundo só quando pedirem um trecho; aí o vídeo começa na primeira batida depois dele. Música tirada de um vídeo já editado (um exemplo, outro Reels) traz junto os efeitos sonoros e a voz daquela edição; se a parte só de música for mais curta que o vídeo, o render avisa: repasse o aviso e peça a música completa ou um vídeo mais curto. A detecção assume tempo constante; faixa só de voz não tem batida (use `"no_ritmo": false`).
 
 ## Plano (`plano.json`)
 
