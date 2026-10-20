@@ -33,16 +33,16 @@ Caminhos relativos ao plano. Campos do plano sobrescrevem os da receita.
 
 ## Corte na música
 
-Com `cortar_nos_golpes`, os cortes caem nos golpes medidos no áudio, sem limiar ajustado para uma música: a densidade sai do andamento (`batidas_media`, 2 batidas por clipe na receita; entre 0,45 e 1,6 s) e é teto, não cota; entram os golpes mais fortes daquela faixa (acima de `golpe_piso`, 0,3 da força dos golpes fortes dela), com `corte_min` entre cortes. Música esparsa fica com clipes mais longos; nunca corta no silêncio. O gancho termina no golpe mais forte entre `gancho_min` e `gancho_max`. Testado em seis gêneros sintéticos (house, funk, trap, reggaeton, pop, balada) e em faixas reais: `teste` repete essa conferência.
+Com `cortar_nos_golpes`, a troca de clipe cai no grave da música (bumbo e baixo, abaixo de 150 Hz), não numa grade de BPM: a batida não é cíclica, e o corte segue os golpes que a faixa tem de fato. Entram os golpes do grave acima de `golpe_piso` (0,6 da força dos golpes fortes daquela faixa), do mais forte para o mais fraco, com `corte_min` entre cortes; onde o grave bate forte e junto os clipes ficam curtos, onde some ficam longos. Vão maior que `corte_max` ganha o golpe mais forte do meio; nunca corta no silêncio. Faixa sem grave que bata (voz, violão) corta nos golpes do som todo; o render diz qual usou em `corte_no`. O gancho termina no golpe mais forte entre `gancho_min` e `gancho_max`. Testado em seis gêneros sintéticos (todo corte em bumbo ou baixo, nunca na caixa ou no chimbal) e na música do A01, onde os cortes caem nos mesmos golpes em que a Vitória cortou: `teste` repete essa conferência.
 
-O render devolve `sincronia`, `cortes` e `clipes` (trecho e velocidade de cada um); cite os números na entrega.
+O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 ms, golpes fortes e quantos ganharam corte), `cortes` e `clipes` (trecho, velocidade e zoom de cada um); cite os números na entrega.
 
 ## Dinâmica
 
 - `ordem: contraste`: mantém o primeiro clipe (gancho) e encadeia os outros do mais diferente para o mais diferente do anterior (cor média), para não juntar planos iguais.
 - `pulsos`: empurrão de zoom de 4% nos golpes fortes que caem dentro de um clipe.
-- `enquadrar`: acha o produto em cada quadro (o que destoa do fundo, sem contar a mão) e recorta seguindo ele: centro do quadro e largura `tamanho_alvo` (0,5, medida no A02), com zoom até `zoom_teto` (1,35, para não perder nitidez). Planos de pessoa ou de loja não têm produto destacado e ficam como estão.
-- `lento` (0.5), `lento_min` (0,9 s) e `rampa`: nos clipes longos, entra no golpe em velocidade normal e desacelera até 0,5x; os quadros intermediários são criados por fluxo de movimento, sem engasgar a partir de 30 qps.
+- `enquadrar`: acha o produto em cada quadro (o que destoa do fundo, sem contar a mão) e recorta seguindo ele: centro do quadro e largura `tamanho_alvo` (0,5, medida no A02), com zoom até `zoom_teto` (1,35, para não perder nitidez). Planos de pessoa ou de loja não têm produto destacado e ficam como estão; neles o trecho escolhido é o que termina no gesto concluído (pôs o óculos e olhou para a câmera), para o corte não chegar antes.
+- `lento` (0.7), `lento_min` (0,9 s) e `rampa`: nos clipes longos, entra no golpe em velocidade normal e desacelera até 0,7x; os quadros intermediários são criados por fluxo de movimento, sem engasgar a partir de 30 qps.
 - `sfx_nas_transicoes`: o som acompanha a transição visual (zoom e desfoque: swoosh; flash com falha: glitch), baixo (`sfx_volume` 0.35); corte seco fica sem som.
 - `transicoes`: giro das transições, intercaladas com cortes secos.
 
@@ -72,7 +72,7 @@ Templates nossos, editáveis: estrutura, ritmo e efeitos, sem fixar a duração 
 
 | Receita | Quando | Estrutura |
 |---|---|---|
-| `corte-musical` | vitrine de produto ou loja no ritmo da música | gancho até o golpe mais forte entre 1,5 e 4 s; cortes nos golpes mais fortes (2 batidas por clipe em média); ordem por contraste; trecho automático; produto centralizado e do mesmo tamanho; câmera lenta com rampa nos clipes longos; pulsos; transições intercaladas com corte seco, com som junto |
+| `corte-musical` | vitrine de produto ou loja no ritmo da música | gancho até o golpe mais forte entre 1,5 e 4 s; cortes no bumbo e no baixo; ordem por contraste; trecho automático; produto centralizado e do mesmo tamanho; câmera lenta leve (0,7x) com rampa nos clipes longos; pulsos; transições intercaladas com corte seco, com som junto |
 | `tela-dividida` | anúncio com alguém falando | cima-baixo (quem fala em cima, produto embaixo), 4 faixas, produto em tela cheia; voz contínua e música de fundo |
 
 ## Conferir

@@ -27,8 +27,9 @@ def _ffmpeg(args, **kw):
     return subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", *args], check=True, **kw)
 
 
-def _amostras(caminho, inicio=0.0, dur=60.0):
-    out = _ffmpeg(["-ss", str(inicio), "-t", str(dur), "-i", caminho, "-vn", "-ac", "1", "-ar", str(SR),
+def _amostras(caminho, inicio=0.0, dur=60.0, filtro=None):
+    out = _ffmpeg(["-ss", str(inicio), "-t", str(dur), "-i", caminho, "-vn", *(["-af", filtro] if filtro else []),
+                   "-ac", "1", "-ar", str(SR),
                    "-f", "s16le", "-"], capture_output=True).stdout
     a = array.array("h")
     a.frombytes(out[: len(out) // 2 * 2])
@@ -37,11 +38,11 @@ def _amostras(caminho, inicio=0.0, dur=60.0):
     return a
 
 
-def _envelope(a):
+def _envelope(a, hop=HOP):
     """Fluxo de energia (log) por quadro, só subidas: marca onde a música 'bate'."""
     env, prev = [], None
-    for i in range(0, len(a) - HOP, HOP):
-        e = math.log1p(sum(x * x for x in a[i:i + HOP]) / HOP)
+    for i in range(0, len(a) - hop, hop):
+        e = math.log1p(sum(x * x for x in a[i:i + hop]) / hop)
         env.append(max(0.0, e - (e if prev is None else prev)))  # sem golpe falso no primeiro quadro
         prev = e
     m = sum(env) / max(1, len(env))
@@ -61,8 +62,33 @@ def _pontua(env, periodo, fase):
     return s / max(1, n)
 
 
+def _picos(env, qps, piso=0.15):
+    """Picos do envelope (máximo local em ±80 ms) com força 0..1 relativa ao percentil 95 dos picos
+    da própria faixa (um pico isolado não achata os outros)."""
+    w = int(0.08 * qps)
+    picos = [i for i in range(len(env)) if env[i] > 0 and env[i] == max(env[max(0, i - w):i + w + 1])]
+    alt = sorted(env[i] for i in picos) or [1.0]
+    teto = alt[int(0.95 * (len(alt) - 1))] or 1.0
+    return [[round(i / qps, 4), round(min(1.0, env[i] / teto), 3)] for i in picos if env[i] >= piso * teto]
+
+
+def graves(caminho, inicio=0.0, dur=60.0):
+    """Golpes do grave (bumbo e baixo, abaixo de 150 Hz): onde a troca de clipe soa na música.
+    Fluxo de energia em log, mas com piso na energia grave típica da faixa: abaixo dele (o vazamento
+    grave da caixa e do chimbal) a subida conta pouco, senão o log a igualaria a um bumbo.
+    Quadro de 5,8 ms para o ataque cair no quadro certo."""
+    hop = HOP // 2
+    a = _amostras(caminho, inicio, dur, "lowpass=f=150,lowpass=f=150")
+    en = [sum(x * x for x in a[i:i + hop]) / hop for i in range(0, len(a) - hop, hop)]
+    ref = 0.5 * (sorted(en)[len(en) // 2] or 1.0)  # metade da energia grave mediana da faixa
+    lg = [math.log1p(e / ref) for e in en]
+    env = [0.0] + [max(0.0, lg[i] - lg[i - 1]) for i in range(1, len(lg))]
+    env = [0.5 * env[max(0, i - 1)] + env[i] + 0.5 * env[min(len(env) - 1, i + 1)] for i in range(len(env))]
+    return _picos(env, SR / hop)
+
+
 def batidas(caminho, inicio=0.0, dur=60.0, bpm_min=70, bpm_max=180):
-    """Devolve {bpm, primeira, batidas[]} em segundos a partir de `inicio`.
+    """Devolve {bpm, primeira, batidas[], golpes[], graves[]} em segundos a partir de `inicio`.
 
     shortcut: assume tempo constante (vale para trend pop/funk/eletrônico); para faixa com
     tempo variável, trocar por rastreamento batida a batida."""
@@ -105,14 +131,9 @@ def batidas(caminho, inicio=0.0, dur=60.0, bpm_min=70, bpm_max=180):
         forcas.append(max(env[max(0, i - 2):i + 3]))
         k += 1
     topo = max(forcas) or 1.0
-    # golpes: picos do envelope (máximo local em ±80 ms), com força 0..1; é onde quem edita corta
-    w = int(0.08 * qps)
-    picos = [i for i in range(len(env)) if env[i] > 0 and env[i] == max(env[max(0, i - w):i + w + 1])]
-    alt = sorted(env[i] for i in picos) or [1.0]
-    teto = alt[int(0.95 * (len(alt) - 1))] or 1.0  # percentil 95: um pico isolado não achata os outros
-    golpes = [[round(i / qps, 4), round(min(1.0, env[i] / teto), 3)] for i in picos if env[i] >= 0.15 * teto]
     return {"bpm": round(bpm, 2), "primeira": round(primeira, 4), "batidas": lista,
-            "forca_meias": [round(f / topo, 3) for f in forcas], "golpes": golpes}
+            "forca_meias": [round(f / topo, 3) for f in forcas], "golpes": _picos(env, qps),
+            "graves": graves(caminho, inicio, dur)}
 
 
 def _receita(plano):
@@ -159,30 +180,22 @@ def _paineis(bloco, p):
     raise SystemExit(f"layout desconhecido: {lay}")
 
 
-def _fronteiras(golpes, ini, dur, p, grade, abertura):
-    """Onde cortar dentro de [ini, ini+dur], sem limiar fixo: vale para qualquer música.
-
-    A densidade vem do andamento (`batidas_media` batidas por clipe, entre `corte_min` e 1,6 s) e é teto,
-    não cota: os cortes são os golpes mais fortes daquela música (acima de `golpe_piso` da força dos golpes
-    fortes dela) que respeitam o espaçamento mínimo; música esparsa fica com clipes mais longos. Trecho longo sem golpe
-    escolhido recebe o golpe mais forte do meio dele. Na abertura, o gancho termina no golpe mais forte
-    entre `gancho_min` e `gancho_max`."""
+def _fronteiras(golpes, ini, dur, p, abertura):
+    """Onde cortar dentro de [ini, ini+dur], seguindo a música e não uma grade de BPM: os golpes do grave
+    (bumbo e baixo) acima de `golpe_piso` (relativo aos golpes fortes desta faixa), do mais forte para o mais
+    fraco, com pelo menos `corte_min` entre cortes. Onde o grave bate forte e junto, os clipes ficam curtos;
+    onde ele some, ficam longos. Vão maior que `corte_max` ganha o golpe mais forte do meio dele (nunca um
+    corte no silêncio). Na abertura, o gancho termina no golpe mais forte entre `gancho_min` e `gancho_max`."""
     cmin, cmax = p.get("corte_min", 0.45), p.get("corte_max", 2.5)
-    batida = grade or 0.5
-    medio = max(cmin, min(1.6, p.get("batidas_media", 1.5) * batida))
     fim = ini + dur
-    piso = p.get("golpe_piso", 0.3)  # relativo aos golpes fortes desta música (escala já normalizada por faixa)
-    golpes = [g for g in golpes if g[1] >= piso]
-    dentro = [g for g in golpes if ini + cmin <= g[0] <= fim - cmin]
+    todos = [g for g in golpes if ini + cmin <= g[0] <= fim - cmin]
+    dentro = [g for g in todos if g[1] >= p.get("golpe_piso", 0.6)]
     aceitos = []
     if abertura:
         gancho = [g for g in dentro if ini + p.get("gancho_min", 1.5) <= g[0] <= ini + p.get("gancho_max", 4.0)]
         if gancho:
             aceitos.append(max(gancho, key=lambda g: (g[1], -g[0])))
-    alvo = max(1, round(dur / medio) - 1)
     for g in sorted(dentro, key=lambda g: -g[1]):
-        if len(aceitos) >= alvo:
-            break
         if abertura and aceitos and g[0] < aceitos[0][0]:
             continue  # nada corta o gancho
         if all(abs(g[0] - a[0]) >= cmin for a in aceitos):
@@ -194,7 +207,7 @@ def _fronteiras(golpes, ini, dur, p, grade, abertura):
         bordas = [ini] + tempos + [fim]
         for a, b in zip(bordas, bordas[1:]):
             limite = p.get("gancho_max", 4.0) if abertura and a == ini and tempos else cmax  # o gancho pode ser longo
-            meio = [g for g in golpes if a + cmin <= g[0] <= b - cmin] if b - a > limite else []
+            meio = [g for g in todos if a + cmin <= g[0] <= b - cmin and g[1] >= 0.3] if b - a > limite else []
             if meio:
                 tempos.append(max(meio, key=lambda g: g[1])[0])
                 tempos.sort()
@@ -213,7 +226,7 @@ def _cortes(clipes, p, grade, total, t0=0.0, golpes=None, abertura=True):
     if any(c.get("continuo") for c in clipes[:1]) or len(clipes) == 1:  # quem fala, ou painel de um clipe só
         return [(clipes[0], 0.0, _quadro(total))]
     if golpes and p.get("cortar_nos_golpes") and not any(c.get("batidas") for c in clipes):
-        bordas = [0.0] + [_quadro(t - t0) for t in _fronteiras(golpes, t0, total, p, grade, abertura)] + [_quadro(total)]
+        bordas = [0.0] + [_quadro(t - t0) for t in _fronteiras(golpes, t0, total, p, abertura)] + [_quadro(total)]
         return [(clipes[k % len(clipes)], a, b) for k, (a, b) in enumerate(zip(bordas, bordas[1:])) if b > a]
     padrao = p.get("batidas_por_corte", 2)
     padrao = padrao if isinstance(padrao, list) else [padrao]
@@ -353,7 +366,8 @@ def _nota_enquadre(arquivo, ini, dur, alvo, teto):
 def _melhor_trecho(arquivo, dur, ocupados=(), enquadre=None):
     """Início da janela mais viva e nítida do bruto, fora do começo e do fim (mão entrando, tremido)
     e sem repetir trechos já usados. Movimento acima do percentil 90 conta como 90 (chacoalhão não vale mais).
-    Com `enquadre` (alvo, teto), pesa também o produto num tamanho enquadrável."""
+    Com `enquadre` (alvo, teto), pesa também o produto num tamanho enquadrável; bruto sem produto (pessoa,
+    loja) prefere a janela em que a ação acontece e termina parada, para não cortar antes do gesto concluído."""
     q = _analise(arquivo)
     if not q:
         return 0.0
@@ -364,12 +378,18 @@ def _melhor_trecho(arquivo, dur, ocupados=(), enquadre=None):
     mediana_b = borr[len(borr) // 2] or 1.0
     margem = min(0.4, max(0.0, (total - dur) / 2))
     melhor = (None, 0.0)
+    pose = enquadre and sum(1 for _, c in _rastro(arquivo)[2] if c) < 0.5 * len(_rastro(arquivo)[2])
     s = margem
     while s + dur <= total - margem + 1e-6:
         if all(s + dur <= a or s >= b for a, b in ocupados):
             jan = [x for x in q if s <= x[0] < s + dur] or q[:1]
             nota = sum(min(x[1], teto) for x in jan) / len(jan) / teto - 0.5 * sum(x[2] for x in jan) / len(jan) / mediana_b
-            if enquadre:
+            if pose:  # pessoa ou cena: a ação acontece e a janela fecha no gesto concluído (pôs e olhou)
+                k = max(1, int(0.7 * len(jan)))
+                acao, fim = jan[:k], jan[k:] or jan[-1:]
+                nota = (sum(min(x[1], teto) for x in acao) / len(acao) - 1.5 * sum(min(x[1], teto) for x in fim) / len(fim)) / teto \
+                    - 0.5 * sum(x[2] for x in jan) / len(jan) / mediana_b
+            elif enquadre:
                 nota += 3 * _nota_enquadre(arquivo, s, dur, *enquadre)
             if melhor[0] is None or nota > melhor[0]:
                 melhor = (nota, s)
@@ -484,7 +504,8 @@ def _trecho(idx, c, dur, p, w, h, transicao, avisos, pulsos=(), velocidade=1.0, 
     for nome in c.get("efeitos") or ([c["efeito"]] if c.get("efeito") else []):
         if nome in EFEITOS:
             f += "," + EFEITOS[nome].format(w=w, h=h)
-    return f + ",setsar=1"
+    # quadro a quadro exato: a câmera lenta interpolada pode sobrar um quadro, e a sobra acumula atraso na música
+    return f + f",tpad=stop_mode=clone:stop_duration=0.2,trim=end_frame={quadros},setpts=PTS-STARTPTS,setsar=1"
 
 
 def render(plano_path):
@@ -494,7 +515,7 @@ def render(plano_path):
     absol = lambda x: x if os.path.isabs(x) else os.path.join(base, x)
     musica, voz = p.get("musica"), p.get("voz")
     auto = p.get("musica_inicio") in (None, "auto")
-    m_ini, grade, info, golpes = 0.0 if auto else float(p["musica_inicio"]), None, None, None
+    m_ini, grade, info, golpes, corte_no = 0.0 if auto else float(p["musica_inicio"]), None, None, None, None
     analise = m_ini
     if musica:
         musica = absol(musica)
@@ -502,15 +523,20 @@ def render(plano_path):
             info = batidas(musica, m_ini, 90)
             grade = 60 / info["bpm"]
             inicio_rel = info["primeira"]  # sem auto: o vídeo começa na primeira batida
+            # corta no grave (bumbo e baixo); faixa sem grave que bata (voz, violão) corta nos golpes do som todo
+            fortes_g = [g for g, f in info["graves"] if f >= p.get("golpe_piso", 0.6)]
+            ouvido = min(90.0, _duracao(musica) - m_ini)
+            corte_no = "grave" if len(fortes_g) >= ouvido / float(p.get("corte_max", 2.5)) / 2 else "golpe"
+            marcas = info["graves"] if corte_no == "grave" else info["golpes"]
             if auto:  # começa no primeiro golpe forte que ainda deixa música para o vídeo inteiro
                 sobra = _duracao(musica) - float(p.get("duracao", 15))
-                forcas = sorted(f for _, f in info["golpes"])
+                forcas = sorted(f for _, f in marcas)
                 p75 = forcas[int(0.75 * (len(forcas) - 1))] if forcas else 1.0
-                inicio_rel = next((g for g, f in info["golpes"] if f >= p75 and g <= sobra), info["primeira"])
+                inicio_rel = next((g for g, f in marcas if f >= p75 and g <= sobra), info["primeira"])
             if _duracao(musica) - (m_ini + inicio_rel) < float(p.get("duracao", 15)) - 0.05:
                 print("aviso: a música acaba antes do vídeo; o final fica sem som", file=sys.stderr)
             m_ini += inicio_rel
-            golpes = [[round(g - (m_ini - analise), 4), f] for g, f in info["golpes"] if g - (m_ini - analise) > -0.02]
+            golpes = [[round(g - (m_ini - analise), 4), f] for g, f in marcas if g - (m_ini - analise) > -0.02]
 
     # duração de cada bloco: em batidas (encaixa na música) ou segundos; o último pode preencher até `duracao`
     blocos, t = [], 0.0
@@ -654,17 +680,16 @@ def render(plano_path):
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k",
              "-movflags", "+faststart", saida])
     sinc = None
-    if golpes:  # quantos golpes fortes ganharam corte e quantos cortes caíram em golpe (±50 ms)
-        dentro = [(g, f) for g, f in golpes if 0.3 < g < total - 0.3]
-        corte_f = sorted((f for _, f in dentro), reverse=True)[max(0, len(cortes_v) - 1)] if dentro else 1
-        fortes = [g for g, f in dentro if f >= corte_f]  # os N golpes mais fortes, N = número de cortes
-        perto = lambda x, ys: any(abs(x - y) <= 0.05 for y in ys)
-        sinc = {"cortes": len(cortes_v), "cortes_no_golpe": sum(perto(c, [g for g, _ in golpes]) for c in cortes_v),
+    if golpes:  # cortes que caíram num golpe forte (±40 ms) e golpes fortes que ganharam corte
+        piso = p.get("golpe_piso", 0.6)
+        fortes = [g for g, f in golpes if 0.3 < g < total - 0.3 and f >= piso]
+        perto = lambda x, ys: any(abs(x - y) <= 0.04 for y in ys)
+        sinc = {"cortes": len(cortes_v), "cortes_no_golpe": sum(perto(c, fortes) for c in cortes_v),
                 "golpes_fortes": len(fortes), "golpes_fortes_com_corte": sum(perto(g, cortes_v) for g in fortes)}
     for a in avisos:
         print("aviso:", a, file=sys.stderr)
     return {"saida": saida, "duracao": round(total, 3), "bpm": info and info["bpm"],
-            "musica_inicio": round(m_ini, 3) if musica else None, "sincronia": sinc,
+            "musica_inicio": round(m_ini, 3) if musica else None, "corte_no": corte_no, "sincronia": sinc,
             "cortes": sorted(cortes_v), "avisos": avisos, "clipes": escolhas,
             "blocos": [{"layout": b.get("layout", "cheio"), "inicio": t0, "duracao": d} for b, t0, d in blocos]}
 
@@ -695,8 +720,9 @@ def teste():
             passou = abs(r["bpm"] - bpm) < 0.5 and erro_fase < 0.03
             ok &= passou
             print(f"{'ok ' if passou else 'ERRO'} bpm {bpm} -> {r['bpm']}, fase {fase} -> {r['primeira']} (erro {erro_fase*1000:.0f} ms)")
-    # corte nos golpes, sem calibrar para uma música: seis gêneros sintéticos com gabarito (bumbo, caixa, chimbal),
-    # baixo e ruído por cima. Exige: BPM certo (oitava aceita), cortes em som real e clipe médio de 0,45 a 2,5 s.
+    # corte no grave, sem calibrar para uma música: seis gêneros sintéticos com gabarito (bumbo, caixa, chimbal),
+    # baixo e ruído por cima. Exige: BPM certo (oitava aceita), todo corte num bumbo ou nota do baixo (nunca na
+    # caixa ou no chimbal) e clipe médio de 0,45 a 2,5 s.
     generos = {  # bpm, bumbo e caixa em semicolcheias do compasso (0-15), chimbal a cada n semicolcheias
         "house": (124, [0, 4, 8, 12], [4, 12], 2),
         "funk": (130, [0, 3, 6, 10], [4, 12], 1),
@@ -711,7 +737,7 @@ def teste():
             sr, dur = 22050, 16.0
             rnd = random.Random(nome)
             amost = [rnd.gauss(0, 900) + 900 * math.sin(2 * math.pi * 0.7 * k / sr) * rnd.gauss(0, 1) for k in range(int(sr * dur))]
-            semi, gabarito = 60 / bpm / 4, []
+            semi, gabarito = 60 / bpm / 4, []  # gabarito: só bumbo e baixo
 
             def bate(t, amp, freq, decai, ruido=False):
                 i0 = int(t * sr)
@@ -728,11 +754,11 @@ def teste():
                     if q in bumbo:
                         bate(t, 14000, 60, 0.03); gabarito.append(t)
                     if q in caixa:
-                        bate(t, 9000, 0, 0.02, True); gabarito.append(t)
+                        bate(t, 9000, 0, 0.02, True)
                     if q % chimbal == 0:
-                        bate(t, 1500, 0, 0.004, True); gabarito.append(t)
+                        bate(t, 1500, 0, 0.004, True)
                     if q in (0, 8):
-                        bate(t, 3000, 110, 0.15)  # baixo
+                        bate(t, 3000, 110, 0.15); gabarito.append(t)  # baixo
             mx = max(abs(x) for x in amost) or 1
             pcm = array.array("h", [int(32000 * x / mx) for x in amost])
             with wave.open(arq, "wb") as w:
@@ -740,12 +766,12 @@ def teste():
                 w.writeframes(pcm.tobytes() if sys.byteorder == "little" else pcm.byteswap() or pcm.tobytes())
             r = batidas(arq, 0, dur)
             oitava = min(abs(r["bpm"] / bpm - f) for f in (0.5, 1, 2)) < 0.02
-            cortes = _fronteiras(r["golpes"], 0.0, 15.0, {"gancho_min": 1.0}, 60 / r["bpm"], True)
+            cortes = _fronteiras(r["graves"], 0.0, 15.0, {"gancho_min": 1.0}, True)
             no_som = [c for c in cortes if any(abs(c - g) <= 0.04 for g in gabarito)]
             media = 15.0 / (len(cortes) + 1)
             passou = oitava and len(no_som) == len(cortes) and 0.45 <= media <= 2.5
             ok &= passou
-            print(f"{'ok ' if passou else 'ERRO'} {nome:9s} bpm {bpm} -> {r['bpm']}; cortes em som real "
+            print(f"{'ok ' if passou else 'ERRO'} {nome:9s} bpm {bpm} -> {r['bpm']}; cortes no grave "
                   f"{len(no_som)}/{len(cortes)}; clipe médio {media:.2f} s")
     # rampa: a soma do tempo de saída tem que dar a duração do clipe
     for dur, vel in ((1.0, 0.5), (2.5, 0.4)):
