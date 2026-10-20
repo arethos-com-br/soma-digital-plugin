@@ -170,7 +170,9 @@ def _cortes(clipes, p, grade, total, t0=0.0, forcas=None):
             meia = grade / 2
             ini, fim_j = math.ceil((t0 + t + janela[0] * grade) / meia - 1e-6), int((t0 + t + janela[1] * grade) / meia + 1e-6)
             cand = [j for j in range(ini, fim_j + 1) if j < len(forcas)] or [ini]
-            j = max(cand, key=lambda j: (forcas[j] if j < len(forcas) else 0, -j))
+            forca = lambda j: forcas[j] if j < len(forcas) else 0.0
+            fortes = [j for j in cand if forca(j) >= 0.5]
+            j = fortes[0] if fortes else max(cand, key=lambda j: (forca(j), -j))  # primeiro golpe forte
             n_seg = j * meia - t0 - t
         elif grade:
             n = c.get("batidas") or (p.get("gancho_batidas") if i == 0 else None) or padrao[i % len(padrao)]
@@ -210,13 +212,21 @@ def render(plano_path):
     base = os.path.dirname(os.path.abspath(plano_path))
     absol = lambda x: x if os.path.isabs(x) else os.path.join(base, x)
     musica, voz = p.get("musica"), p.get("voz")
-    m_ini, grade, info = float(p.get("musica_inicio", 0)), None, None
+    auto = p.get("musica_inicio") in (None, "auto")
+    m_ini, grade, info = 0.0 if auto else float(p["musica_inicio"]), None, None
     if musica:
         musica = absol(musica)
         if p.get("no_ritmo", True):
             info = batidas(musica, m_ini, 90)
             grade = 60 / info["bpm"]
-            m_ini += info["primeira"]  # o vídeo começa numa batida
+            pulo = 0
+            if auto:  # começa no primeiro golpe forte que ainda deixa música para o vídeo inteiro
+                sobra = _duracao(musica) - float(p.get("duracao", 15)) - info["primeira"]
+                pulo = next((k for k, f in enumerate(info["forca_meias"]) if f >= 0.5 and k * grade / 2 <= sobra), 0)
+                info["forca_meias"] = info["forca_meias"][pulo:]
+            if _duracao(musica) - (m_ini + info["primeira"] + pulo * grade / 2) < float(p.get("duracao", 15)) - 0.05:
+                print("aviso: a música acaba antes do vídeo; o final fica sem som", file=sys.stderr)
+            m_ini += info["primeira"] + pulo * grade / 2  # o vídeo começa numa batida
 
     # duração de cada bloco: em batidas (encaixa na música) ou segundos; o último pode preencher até `duracao`
     blocos, t = [], 0.0
@@ -289,14 +299,12 @@ def render(plano_path):
                        else f"{audios[0]}anull[a]")
         mapa += ["-map", "[a]"]
     saida = absol(p.get("saida", "saida.mp4"))
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as tf:
-        tf.write(";\n".join(filtros))  # arquivo evita limite de linha de comando no Windows
-    try:
-        _ffmpeg(["-y", *entradas, "-filter_complex_script", tf.name, *mapa, "-t", f"{total:.3f}",
-                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k",
-                 "-movflags", "+faststart", saida])
-    finally:
-        os.unlink(tf.name)
+    grafo = ";".join(filtros)
+    if len(grafo) > 30000:  # perto do limite de linha de comando do Windows (32 767)
+        raise SystemExit(f"plano grande demais para um render ({len(grafo)} caracteres de filtro); divida em menos clipes")
+    _ffmpeg(["-y", *entradas, "-filter_complex", grafo, *mapa, "-t", f"{total:.3f}",
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-c:a", "aac", "-b:a", "192k",
+             "-movflags", "+faststart", saida])
     return {"saida": saida, "duracao": round(total, 3), "bpm": info and info["bpm"],
             "musica_inicio": round(m_ini, 3) if musica else None,
             "blocos": [{"layout": b.get("layout", "cheio"), "inicio": t0, "duracao": d} for b, t0, d in blocos]}

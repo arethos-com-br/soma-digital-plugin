@@ -6,7 +6,7 @@ Rodar: `py -B -I scripts/video_local.py render plano.json` no Windows (`python3`
 
 ## Música
 
-Arquivo de áudio ou vídeo com a música (a que indicarem, o áudio da trend baixado, ou extraída de um vídeo de referência). Ache o trecho que interessa (`musica_inicio`, em segundos); o vídeo começa na primeira batida depois dele. A detecção assume tempo constante; faixa só de voz não tem batida (use `"no_ritmo": false`).
+Arquivo de áudio ou vídeo com a música (a que indicarem, o áudio da trend baixado, ou extraída de um vídeo de referência). Sem `musica_inicio`, o vídeo começa no primeiro golpe forte da música (pula introdução calma); para outro trecho, informe o segundo e o vídeo começa na primeira batida depois dele. A detecção assume tempo constante; faixa só de voz não tem batida (use `"no_ritmo": false`).
 
 ## Plano (`plano.json`)
 
@@ -15,14 +15,15 @@ Caminhos relativos ao plano. Campos do plano sobrescrevem os da receita.
 ```json
 {
   "receita": "corte-musical",
-  "musica": "musica.m4a", "musica_inicio": 3.2,
+  "musica": "musica.m4a",
   "duracao": 15,
   "clipes": [{"arquivo": "brutos/IMG_5291.MP4", "inicio": 0.5}, {"arquivo": "brutos/IMG_0074.MP4", "inicio": 3}],
   "saida": "video.mp4"
 }
 ```
 
-- `inicio`: segundo do bruto onde começa o melhor trecho (escolhido ao examinar os quadros).
+- `inicio`: segundo do bruto onde começa o melhor trecho, escolhido ao examinar os quadros (evite o começo tremido ou vazio do bruto; não deixe todos em 0).
+- Não copie nem edite o script; se ele falhar, pare e informe o erro.
 - Por clipe, opcional: `batidas` (fixa quantas batidas ele dura), `segundos` (sem música), `zoom` (true/false), `continuo` (segue o bloco inteiro).
 - `voz`: `{"arquivo": ..., "inicio": ...}`, áudio contínuo de quem fala; a música desce para `musica_volume` (0.25). O clipe de quem fala com `"continuo": true` fica em sincronia com a voz.
 - `blocos`: a sequência de layouts. Cada bloco tem `layout` (`cheio`, `cima-baixo`, `faixas` com `n`, `lado-a-lado`), `segundos` ou `batidas`, e `paineis`: uma lista de clipes por painel (em `cima-baixo`, o primeiro é o de cima). Painel com clipe mais curto que o bloco segura o último quadro. O último bloco sem duração preenche até `duracao`.
@@ -33,7 +34,7 @@ Templates nossos, editáveis: estrutura, ritmo e efeitos, sem fixar a duração 
 
 | Receita | Quando | Estrutura |
 |---|---|---|
-| `corte-musical` | vitrine de produto ou loja no ritmo da música | gancho de 4 batidas; cada corte no golpe mais forte entre 1 e 2 batidas; zoom leve; flash no primeiro corte |
+| `corte-musical` | vitrine de produto ou loja no ritmo da música | gancho de 4 batidas; cada corte no primeiro golpe forte entre 1 e 3 batidas; zoom leve; flash no primeiro corte |
 | `tela-dividida` | anúncio com alguém falando | cima-baixo (quem fala em cima, produto embaixo), 4 faixas, produto em tela cheia; voz contínua e música de fundo |
 
 ## Conferir
