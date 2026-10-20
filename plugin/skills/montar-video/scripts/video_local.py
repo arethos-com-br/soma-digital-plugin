@@ -172,7 +172,8 @@ def conferir_musica(musica, p):
                           f"{dur:g} s o vídeo abre com {seq - inicio:.1f} s de introdução da faixa (voz ou efeito sonoro "
                           "de outra edição). Peça a música completa ou um vídeo mais curto")
     else:
-        inicio = info["primeira"]  # trecho pedido: começa na primeira batida depois dele
+        # trecho pedido: começa no primeiro golpe forte a partir dele (o golpe, não a grade de BPM)
+        inicio = next((g for g, f in marcas if f >= piso and g >= -0.05), info["primeira"])
     if total - (analise + inicio) < dur - 0.05:
         avisos.append(f"a música acaba {dur - (total - analise - inicio):.1f} s antes do vídeo; o final fica sem som")
     return {"bpm": info["bpm"], "corte_no": corte_no, "inicio": round(analise + inicio, 3),
