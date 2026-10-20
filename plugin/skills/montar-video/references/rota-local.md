@@ -22,16 +22,27 @@ Caminhos relativos ao plano. Campos do plano sobrescrevem os da receita.
 }
 ```
 
-- `inicio`: segundo do bruto onde começa o melhor trecho, escolhido ao examinar os quadros (evite o começo tremido ou vazio do bruto; não deixe todos em 0).
+- `inicio`: deixe de fora; o script escolhe a janela mais viva e nítida de cada bruto (movimento e foco medidos), fora do começo e do fim, sem repetir trecho. Informe só quando viu um momento específico que precisa entrar.
 - Não copie nem edite o script; se ele falhar, pare e informe o erro.
 - Por clipe, opcional: `transicao` (como ele entra, no golpe), `efeito` ou `efeitos` (lista), `sfx` (efeito sonoro no corte), `zoom` (true/false), `continuo` (segue o bloco inteiro), `batidas` (fixa a duração; evite, tira o corte do golpe), `segundos` (sem música).
 - Sem `transicao` no clipe, as transições giram pela lista `transicoes` da receita; `sfx_nos_cortes` põe o mesmo efeito sonoro em todos os cortes.
+- `velocidade`: força uma velocidade no clipe (0.5 a 1); a receita já põe câmera lenta leve nos clipes longos.
 - `voz`: `{"arquivo": ..., "inicio": ...}`, áudio contínuo de quem fala; a música desce para `musica_volume` (0.25). O clipe de quem fala com `"continuo": true` fica em sincronia com a voz.
 - `blocos`: a sequência de layouts. Cada bloco tem `layout` (`cheio`, `cima-baixo`, `faixas` com `n`, `lado-a-lado`), `segundos` ou `batidas`, e `paineis`: uma lista de clipes por painel (em `cima-baixo`, o primeiro é o de cima). Painel com clipe mais curto que o bloco segura o último quadro. O último bloco sem duração preenche até `duracao`.
 
 ## Corte na música
 
-Com `cortar_nos_golpes`, o corte cai nos golpes da música (picos medidos no áudio, não numa grade fixa): o gancho vai até o primeiro golpe forte depois de `gancho_min` s; depois cada corte no próximo golpe com força ≥ `golpe_forte` (0 a 1), nenhum clipe com menos de `corte_min` s; sem golpe forte até `corte_max` s, o clipe estica até o golpe mais forte do fim da janela. O render devolve `sincronia` (cortes no golpe e golpes fortes com corte) e `cortes`; cite os números na entrega.
+Com `cortar_nos_golpes`, os cortes caem nos golpes medidos no áudio, sem limiar ajustado para uma música: a densidade sai do andamento (`batidas_media`, 1,5 batida por clipe; entre 0,45 e 1,6 s) e é teto, não cota; entram os golpes mais fortes daquela faixa (acima de `golpe_piso`, 0,3 da força dos golpes fortes dela), com `corte_min` entre cortes. Música esparsa fica com clipes mais longos; nunca corta no silêncio. O gancho termina no golpe mais forte entre `gancho_min` e `gancho_max`. Testado em seis gêneros sintéticos (house, funk, trap, reggaeton, pop, balada) e em faixas reais: `teste` repete essa conferência.
+
+O render devolve `sincronia`, `cortes` e `clipes` (trecho e velocidade de cada um); cite os números na entrega.
+
+## Dinâmica
+
+- `ordem: contraste`: mantém o primeiro clipe (gancho) e encadeia os outros do mais diferente para o mais diferente do anterior (cor média), para não juntar planos iguais.
+- `pulsos`: empurrão de zoom de 4% nos golpes fortes que caem dentro de um clipe.
+- `lento` (0.8) e `lento_min` (1,2 s): câmera lenta leve só nos clipes longos.
+- `sfx_nas_transicoes`: o som acompanha a transição visual (zoom e desfoque: swoosh; flash com falha: glitch), baixo (`sfx_volume` 0.35); corte seco fica sem som.
+- `transicoes`: giro das transições, intercaladas com cortes secos.
 
 ## Repertório (D01) na rota local
 
@@ -59,7 +70,7 @@ Templates nossos, editáveis: estrutura, ritmo e efeitos, sem fixar a duração 
 
 | Receita | Quando | Estrutura |
 |---|---|---|
-| `corte-musical` | vitrine de produto ou loja no ritmo da música | gancho até o primeiro golpe forte; cada corte num golpe; transições em giro (zoom in, corte, desfoque, corte, zoom out, brilho); zoom leve; flash no primeiro corte |
+| `corte-musical` | vitrine de produto ou loja no ritmo da música | gancho até o golpe mais forte entre 1,5 e 4 s; cortes nos golpes mais fortes; ordem por contraste; trecho automático; câmera lenta leve nos clipes longos; pulsos; transições intercaladas com corte seco, com som junto |
 | `tela-dividida` | anúncio com alguém falando | cima-baixo (quem fala em cima, produto embaixo), 4 faixas, produto em tela cheia; voz contínua e música de fundo |
 
 ## Conferir

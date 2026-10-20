@@ -21,5 +21,7 @@
   "cortar_nos_golpes": true,
   "corte_min": 1.2,
   "corte_max": 3.0,
-  "golpe_forte": 0.65
+  "pulsos": true,
+  "sfx_nas_transicoes": true,
+  "sfx_volume": 0.35
 }

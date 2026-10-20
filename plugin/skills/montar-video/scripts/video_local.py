@@ -159,34 +159,68 @@ def _paineis(bloco, p):
     raise SystemExit(f"layout desconhecido: {lay}")
 
 
-def _cortes(clipes, p, grade, total, t0=0.0, golpes=None, abertura=True):
-    """Tempos (início, fim) de cada clipe no painel.
+def _fronteiras(golpes, ini, dur, p, grade, abertura):
+    """Onde cortar dentro de [ini, ini+dur], sem limiar fixo: vale para qualquer música.
 
-    Com `golpes` (picos da música em tempo de vídeo) e `cortar_nos_golpes`, cada corte cai no próximo golpe
-    forte: o gancho vai até o primeiro golpe forte depois de `gancho_min` s; depois, nenhum clipe fica com
-    menos de `corte_min` s, e se não vier golpe forte em `corte_max` s o corte vai no golpe mais forte do
-    fim da janela. Sem golpes, usa a grade de batidas (`batidas_por_corte`) ou segundos."""
+    A densidade vem do andamento (`batidas_media` batidas por clipe, entre `corte_min` e 1,6 s) e é teto,
+    não cota: os cortes são os golpes mais fortes daquela música (acima de `golpe_piso` da força dos golpes
+    fortes dela) que respeitam o espaçamento mínimo; música esparsa fica com clipes mais longos. Trecho longo sem golpe
+    escolhido recebe o golpe mais forte do meio dele. Na abertura, o gancho termina no golpe mais forte
+    entre `gancho_min` e `gancho_max`."""
+    cmin, cmax = p.get("corte_min", 0.45), p.get("corte_max", 2.5)
+    batida = grade or 0.5
+    medio = max(cmin, min(1.6, p.get("batidas_media", 1.5) * batida))
+    fim = ini + dur
+    piso = p.get("golpe_piso", 0.3)  # relativo aos golpes fortes desta música (escala já normalizada por faixa)
+    golpes = [g for g in golpes if g[1] >= piso]
+    dentro = [g for g in golpes if ini + cmin <= g[0] <= fim - cmin]
+    aceitos = []
+    if abertura:
+        gancho = [g for g in dentro if ini + p.get("gancho_min", 1.5) <= g[0] <= ini + p.get("gancho_max", 4.0)]
+        if gancho:
+            aceitos.append(max(gancho, key=lambda g: (g[1], -g[0])))
+    alvo = max(1, round(dur / medio) - 1)
+    for g in sorted(dentro, key=lambda g: -g[1]):
+        if len(aceitos) >= alvo:
+            break
+        if abertura and aceitos and g[0] < aceitos[0][0]:
+            continue  # nada corta o gancho
+        if all(abs(g[0] - a[0]) >= cmin for a in aceitos):
+            aceitos.append(g)
+    tempos = sorted(a[0] for a in aceitos)
+    mudou = True
+    while mudou:  # clipe acima de corte_max ganha o golpe mais forte do vão; sem golpe, fica longo (não corta no silêncio)
+        mudou = False
+        bordas = [ini] + tempos + [fim]
+        for a, b in zip(bordas, bordas[1:]):
+            limite = p.get("gancho_max", 4.0) if abertura and a == ini and tempos else cmax  # o gancho pode ser longo
+            meio = [g for g in golpes if a + cmin <= g[0] <= b - cmin] if b - a > limite else []
+            if meio:
+                tempos.append(max(meio, key=lambda g: g[1])[0])
+                tempos.sort()
+                mudou = True
+                break
+    return [t for t in tempos if ini < t < fim]
+
+
+def _cortes(clipes, p, grade, total, t0=0.0, golpes=None, abertura=True):
+    """Tempos (início, fim) de cada clipe no painel, relativos ao bloco.
+
+    Com golpes e `cortar_nos_golpes`, as fronteiras vêm de `_fronteiras`; sem, da grade de batidas
+    (`batidas_por_corte`) ou de segundos."""
+    if not clipes:
+        return []
+    if any(c.get("continuo") for c in clipes[:1]) or len(clipes) == 1:  # quem fala, ou painel de um clipe só
+        return [(clipes[0], 0.0, _quadro(total))]
+    if golpes and p.get("cortar_nos_golpes") and not any(c.get("batidas") for c in clipes):
+        bordas = [0.0] + [_quadro(t - t0) for t in _fronteiras(golpes, t0, total, p, grade, abertura)] + [_quadro(total)]
+        return [(clipes[k % len(clipes)], a, b) for k, (a, b) in enumerate(zip(bordas, bordas[1:])) if b > a]
     padrao = p.get("batidas_por_corte", 2)
     padrao = padrao if isinstance(padrao, list) else [padrao]
-    forte, cmin, cmax = p.get("golpe_forte", 0.65), p.get("corte_min", 0.45), p.get("corte_max", 2.5)
     partes, t, i = [], 0.0, 0
-    while t < total - 1e-3 and clipes:
+    while t < total - 1e-3:
         c = clipes[i % len(clipes)]
-        if c.get("continuo") or len(clipes) == 1:  # segue o painel inteiro (quem fala, ou painel de um clipe só)
-            n_seg = total - t
-        elif golpes and p.get("cortar_nos_golpes") and not c.get("batidas"):
-            agora = t0 + t
-            lo, hi = (p.get("gancho_min", 1.5), p.get("gancho_max", 4.0)) if i == 0 and abertura else (cmin, cmax)
-            cand = [g for g in golpes if agora + lo - 1e-3 <= g[0] <= agora + hi + 1e-3]
-            fortes = [g for g in cand if g[1] >= forte]
-            if fortes:
-                alvo = fortes[0][0]
-            elif [g for g in cand if g[0] >= agora + 0.6 * hi]:  # sem golpe forte: estica o clipe
-                alvo = max((g for g in cand if g[0] >= agora + 0.6 * hi), key=lambda g: g[1])[0]
-            else:
-                alvo = agora + (2 * grade if grade else hi)
-            n_seg = alvo - agora
-        elif grade:
+        if grade:
             n = c.get("batidas") or (p.get("gancho_batidas") if i == 0 else None) or padrao[i % len(padrao)]
             n_seg = n * grade
         else:
@@ -199,13 +233,80 @@ def _cortes(clipes, p, grade, total, t0=0.0, golpes=None, abertura=True):
     return partes
 
 
+_ANALISE = {}
+
+
+def _analise(arquivo):
+    """Movimento (YDIF) e desfoque por quadro, a 10 qps, em miniatura; guardado por arquivo."""
+    if arquivo not in _ANALISE:
+        out = subprocess.run(["ffmpeg", "-v", "error", "-i", arquivo, "-an", "-vf",
+                              "fps=10,scale=96:-2,signalstats,blurdetect,metadata=print:file=-", "-f", "null", "-"],
+                             capture_output=True, text=True).stdout
+        quadros, atual = [], None
+        for linha in out.splitlines():
+            if "pts_time:" in linha:
+                atual = [float(linha.split("pts_time:")[1].split()[0]), 0.0, 0.0]
+                quadros.append(atual)
+            elif atual and "YDIF=" in linha:
+                atual[1] = float(linha.split("=")[1])
+            elif atual and "lavfi.blur=" in linha:
+                atual[2] = float(linha.split("=")[1])
+        _ANALISE[arquivo] = quadros
+    return _ANALISE[arquivo]
+
+
+def _melhor_trecho(arquivo, dur, ocupados=()):
+    """Início da janela mais viva e nítida do bruto, fora do começo e do fim (mão entrando, tremido)
+    e sem repetir trechos já usados. Movimento acima do percentil 90 conta como 90 (chacoalhão não vale mais)."""
+    q = _analise(arquivo)
+    if not q:
+        return 0.0
+    total = q[-1][0]
+    mov = sorted(x[1] for x in q)
+    teto = mov[int(0.9 * (len(mov) - 1))] or 1.0
+    borr = sorted(x[2] for x in q)
+    mediana_b = borr[len(borr) // 2] or 1.0
+    margem = min(0.4, max(0.0, (total - dur) / 2))
+    melhor = (None, 0.0)
+    s = margem
+    while s + dur <= total - margem + 1e-6:
+        if all(s + dur <= a or s >= b for a, b in ocupados):
+            jan = [x for x in q if s <= x[0] < s + dur] or q[:1]
+            nota = sum(min(x[1], teto) for x in jan) / len(jan) / teto - 0.5 * sum(x[2] for x in jan) / len(jan) / mediana_b
+            if melhor[0] is None or nota > melhor[0]:
+                melhor = (nota, s)
+        s += 0.1
+    return round(melhor[1], 2)
+
+
+def _assinatura(arquivo, t):
+    """Cor média num mosaico 4x4 do quadro em t: serve para medir se dois planos se parecem."""
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.2f}", "-i", arquivo, "-frames:v", "1",
+                          "-vf", "scale=4:4", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+    return list(raw)
+
+
+def _ordem_contraste(clipes):
+    """Mantém o primeiro (gancho) e encadeia os outros do mais diferente para o mais diferente do anterior."""
+    if len(clipes) < 3:
+        return clipes
+    ass = [_assinatura(c["arquivo"], float(c.get("inicio") or 1.0)) for c in clipes]
+    dist = lambda a, b: sum((x - y) ** 2 for x, y in zip(a, b))
+    ordem, resto = [0], list(range(1, len(clipes)))
+    while resto:
+        k = max(resto, key=lambda r: dist(ass[r], ass[ordem[-1]]))
+        ordem.append(k)
+        resto.remove(k)
+    return [clipes[k] for k in ordem]
+
+
 # Repertório da Vitória (D01) em filtros do ffmpeg. Transição = início do clipe que entra, no golpe.
 TRANSICOES = {
     "corte": "",
     "flash": "fade=t=in:st=0:d=0.12:color=white",
     "fade": "fade=t=in:st=0:d=0.2",
     "desfoque": "boxblur=20:2:enable='lt(t,0.13)'",
-    "brilho": "eq=brightness=0.28:contrast=1.15:enable='lt(t,0.1)',fade=t=in:st=0:d=0.1:color=white",
+    "brilho": "eq=brightness=0.18:contrast=1.1:saturation=1.2:enable='lt(t,0.13)'",
     "flash_falha": "rgbashift=rh=24:bh=-24:enable='lt(t,0.1)',fade=t=in:st=0:d=0.08:color=white",
     "zoom_in": "",   # vão no zoompan, abaixo
     "zoom_out": "",
@@ -225,17 +326,21 @@ SFX = {  # (fonte lavfi, quanto começa antes do corte em s)
     "vento": ("anoisesrc=d=0.8:c=brown:a=0.5:r=44100,lowpass=f=500,afade=t=in:d=0.4,afade=t=out:st=0.4:d=0.4,volume=6dB", 0.4),
 }
 SFX.update({"woosh": SFX["swoosh"], "swish": SFX["swoosh"], "shun": SFX["swoosh"]})
+SFX_DA_TRANSICAO = {"zoom_in": "swoosh", "zoom_out": "swoosh", "desfoque": "swoosh", "flash_falha": "glitch"}
 SEM_EQUIVALENTE = {"combinar", "radial_blur", "typing", "typewriting"}
 
 
-def _trecho(idx, c, dur, p, w, h, transicao, avisos):
-    """Filtro de um clipe: recorte do bruto, enquadramento sem barras, zoom, transição de entrada e efeito."""
+def _trecho(idx, c, dur, p, w, h, transicao, avisos, pulsos=(), velocidade=1.0):
+    """Filtro de um clipe: recorte do bruto, enquadramento sem barras, velocidade, zoom com pulsos nos
+    golpes de dentro do clipe, transição de entrada e efeito."""
+    fonte = dur * velocidade  # câmera lenta usa menos tempo do bruto
     origem = float(c.get("inicio", 0))
     disp = _duracao(c["arquivo"])
-    origem = max(0.0, min(origem, disp - dur)) if disp > dur else 0.0
-    f = (f"[{idx}:v]trim=start={origem:.3f}:duration={dur:.3f},setpts=PTS-STARTPTS,fps={FPS},"
+    origem = max(0.0, min(origem, disp - fonte)) if disp > fonte else 0.0
+    lento = f",setpts=PTS/{velocidade}" if velocidade != 1.0 else ""
+    f = (f"[{idx}:v]trim=start={origem:.3f}:duration={fonte:.3f},setpts=PTS-STARTPTS{lento},fps={FPS},"
          f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1")
-    if disp < origem + dur:  # bruto curto: segura o último quadro em vez de cortar o tempo
+    if disp < origem + fonte:  # bruto curto: segura o último quadro em vez de cortar o tempo
         f += f",tpad=stop_mode=clone:stop_duration={dur:.3f},trim=duration={dur:.3f}"
     for nome in [transicao] + list(c.get("efeitos") or ([c["efeito"]] if c.get("efeito") else [])):
         if nome in SEM_EQUIVALENTE or (nome not in TRANSICOES and nome not in EFEITOS):
@@ -248,6 +353,9 @@ def _trecho(idx, c, dur, p, w, h, transicao, avisos):
         z += "*(1+0.15*min(1,on/6))"
     elif transicao == "zoom_out":
         z += "*(1+0.25*max(0,1-on/6))"
+    for a in pulsos:  # golpe dentro do clipe: empurrão de 4% que some em 6 quadros
+        q = round(a * FPS)
+        z += f"*(1+0.04*gte(on,{q})*max(0,1-(on-{q})/6))"
     if z != "1":
         f += f",zoompan=z='{z}':d=1:x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':s={w}x{h}:fps={FPS}"
     if TRANSICOES.get(transicao):
@@ -275,8 +383,9 @@ def render(plano_path):
             inicio_rel = info["primeira"]  # sem auto: o vídeo começa na primeira batida
             if auto:  # começa no primeiro golpe forte que ainda deixa música para o vídeo inteiro
                 sobra = _duracao(musica) - float(p.get("duracao", 15))
-                inicio_rel = next((g for g, f in info["golpes"] if f >= p.get("golpe_forte", 0.65) and g <= sobra),
-                                  info["primeira"])
+                forcas = sorted(f for _, f in info["golpes"])
+                p75 = forcas[int(0.75 * (len(forcas) - 1))] if forcas else 1.0
+                inicio_rel = next((g for g, f in info["golpes"] if f >= p75 and g <= sobra), info["primeira"])
             if _duracao(musica) - (m_ini + inicio_rel) < float(p.get("duracao", 15)) - 0.05:
                 print("aviso: a música acaba antes do vídeo; o final fica sem som", file=sys.stderr)
             m_ini += inicio_rel
@@ -310,7 +419,7 @@ def render(plano_path):
 
     flash_modo = p.get("flash_no_corte", "gancho")
     giro = p.get("transicoes") or []
-    avisos, sfx, cortes_v, usado = [], [], set(), {}  # usado: até onde cada bruto já apareceu
+    avisos, sfx, cortes_v, usado, escolhas = [], [], set(), {}, []  # usado: trechos já usados de cada bruto
     for bi, (b, t0, d) in enumerate(blocos):
         rets = _paineis(b, p)
         paineis = b.get("paineis") or []
@@ -325,14 +434,35 @@ def render(plano_path):
                 if c.get("continuo") and voz and os.path.abspath(c["arquivo"]) == absol(voz["arquivo"]):
                     c["inicio"] = float(voz.get("inicio", 0)) + t0
             nomes = []
-            for k, (c, a0, a1) in enumerate(_cortes(clipes, {**p, **b}, grade, d, t0, golpes, bi == 0)):
-                chave = (c["arquivo"], float(c.get("inicio", 0)))
-                if chave in usado and not c.get("continuo"):  # bruto reusado: continua de onde parou, sem repetir
-                    c = {**c, "inicio": usado[chave]}
-                    if usado[chave] + (a1 - a0) > _duracao(c["arquivo"]):
+            pb = {**p, **b}
+            if pb.get("ordem") == "contraste" and not any(c.get("continuo") for c in clipes):
+                clipes = _ordem_contraste(clipes)
+            partes = _cortes(clipes, pb, grade, d, t0, golpes, bi == 0)
+            bordas = {round(t0 + a0, 3) for _, a0, _ in partes}
+            for k, (c, a0, a1) in enumerate(partes):
+                vel = 1.0
+                if pb.get("lento") and not c.get("continuo") and a1 - a0 >= pb.get("lento_min", 1.2):
+                    vel = float(pb["lento"])  # clipe longo respira em câmera lenta leve
+                vel = float(c.get("velocidade", vel))
+                fonte = (a1 - a0) * vel
+                if c.get("continuo"):
+                    pass
+                elif c.get("inicio") in (None, "auto"):  # escolhe a janela mais viva e nítida ainda não usada
+                    c = {**c, "inicio": _melhor_trecho(c["arquivo"], fonte, usado.get(c["arquivo"], []))}
+                elif any(a < float(c["inicio"]) + fonte and float(c["inicio"]) < b for a, b in usado.get(c["arquivo"], [])):
+                    novo = max(b for _, b in usado[c["arquivo"]])  # reusado: continua de onde parou, sem repetir
+                    if novo + fonte > _duracao(c["arquivo"]):
                         avisos.append(f"{os.path.basename(c['arquivo'])}: brutos insuficientes, trecho repetido")
-                        c["inicio"] = float(chave[1])
-                usado[chave] = float(c.get("inicio", 0)) + (a1 - a0)
+                    else:
+                        c = {**c, "inicio": novo}
+                usado.setdefault(c["arquivo"], []).append((float(c.get("inicio", 0)), float(c.get("inicio", 0)) + fonte))
+                escolhas.append({"arquivo": os.path.basename(c["arquivo"]), "no_video": round(t0 + a0, 2),
+                                 "inicio": c.get("inicio"), "duracao": round(a1 - a0, 2), "velocidade": vel})
+                pulsos = []
+                if golpes and pb.get("pulsos") and not c.get("continuo"):
+                    fortes = sorted((f for _, f in golpes), reverse=True)
+                    corte = fortes[max(0, len(bordas) - 1)] if len(fortes) >= len(bordas) else 0
+                    pulsos = [g - t0 - a0 for g, f in golpes if t0 + a0 + 0.25 < g < t0 + a1 - 0.15 and f >= corte]
                 flash = flash_modo == "todos" or (flash_modo == "gancho" and bi == 0 and pi == 0 and k == 1) \
                     or (flash_modo == "blocos" and k == 0 and bi > 0)
                 if "transicao" in c:
@@ -346,13 +476,15 @@ def render(plano_path):
                 if k > 0 or bi > 0:
                     cortes_v.add(round(t0 + a0, 3))
                 nome_sfx = c.get("sfx") or (p.get("sfx_nos_cortes") if k > 0 else None)
+                if "sfx" not in c and not nome_sfx and pb.get("sfx_nas_transicoes"):
+                    nome_sfx = SFX_DA_TRANSICAO.get(trans)  # o som acompanha a transição visual
                 if nome_sfx:
                     if nome_sfx in SFX:
                         sfx.append((nome_sfx, t0 + a0))
                     else:
                         avisos.append(f"efeito sonoro '{nome_sfx}' sem equivalente na rota local, ficou de fora")
                 rot = f"b{bi}p{pi}c{k}"
-                filtros.append(_trecho(entra(c["arquivo"]), c, a1 - a0, {**p, **b}, w, h, trans, avisos) + f"[{rot}]")
+                filtros.append(_trecho(entra(c["arquivo"]), c, a1 - a0, pb, w, h, trans, avisos, pulsos, vel) + f"[{rot}]")
                 nomes.append(f"[{rot}]")
             filtros.append(f"{''.join(nomes)}concat=n={len(nomes)}:v=1:a=0,"
                            f"tpad=stop_mode=clone:stop_duration={d:.3f},trim=duration={d:.3f}[b{bi}p{pi}]")
@@ -378,7 +510,7 @@ def render(plano_path):
     for k, (nome, quando) in enumerate(sfx):
         fonte, antes = SFX[nome]
         atraso = max(0, int((quando - antes) * 1000))
-        filtros.append(f"{fonte},volume={float(p.get('sfx_volume', 0.5))},adelay={atraso}:all=1,"
+        filtros.append(f"{fonte},volume={float(p.get('sfx_volume', 0.35))},adelay={atraso}:all=1,"
                        f"aformat=sample_rates=44100:channel_layouts=stereo[sfx{k}]")
         audios.append(f"[sfx{k}]")
     if audios:
@@ -394,7 +526,9 @@ def render(plano_path):
              "-movflags", "+faststart", saida])
     sinc = None
     if golpes:  # quantos golpes fortes ganharam corte e quantos cortes caíram em golpe (±50 ms)
-        fortes = [g for g, f in golpes if f >= p.get("golpe_forte", 0.65) and 0.3 < g < total - 0.3]
+        dentro = [(g, f) for g, f in golpes if 0.3 < g < total - 0.3]
+        corte_f = sorted((f for _, f in dentro), reverse=True)[max(0, len(cortes_v) - 1)] if dentro else 1
+        fortes = [g for g, f in dentro if f >= corte_f]  # os N golpes mais fortes, N = número de cortes
         perto = lambda x, ys: any(abs(x - y) <= 0.05 for y in ys)
         sinc = {"cortes": len(cortes_v), "cortes_no_golpe": sum(perto(c, [g for g, _ in golpes]) for c in cortes_v),
                 "golpes_fortes": len(fortes), "golpes_fortes_com_corte": sum(perto(g, cortes_v) for g in fortes)}
@@ -402,7 +536,7 @@ def render(plano_path):
         print("aviso:", a, file=sys.stderr)
     return {"saida": saida, "duracao": round(total, 3), "bpm": info and info["bpm"],
             "musica_inicio": round(m_ini, 3) if musica else None, "sincronia": sinc,
-            "cortes": sorted(cortes_v), "avisos": avisos,
+            "cortes": sorted(cortes_v), "avisos": avisos, "clipes": escolhas,
             "blocos": [{"layout": b.get("layout", "cheio"), "inicio": t0, "duracao": d} for b, t0, d in blocos]}
 
 
@@ -432,32 +566,58 @@ def teste():
             passou = abs(r["bpm"] - bpm) < 0.5 and erro_fase < 0.03
             ok &= passou
             print(f"{'ok ' if passou else 'ERRO'} bpm {bpm} -> {r['bpm']}, fase {fase} -> {r['primeira']} (erro {erro_fase*1000:.0f} ms)")
-    # corte nos golpes: 120 BPM com golpes fortes irregulares (padrão do exemplo A01) e batidas fracas
-    with tempfile.TemporaryDirectory() as d:
-        arq = os.path.join(d, "golpes.wav")
-        sr, dur = 22050, 14.0
-        rnd = random.Random(2)
-        amost = array.array("h", [int(rnd.gauss(0, 200)) for _ in range(int(sr * dur))])
-        fortes = [1.0, 2.5, 3.0, 5.0, 6.5, 7.0, 9.0, 10.5, 11.0]
-        for k in range(int(dur / 0.5)):
-            t = k * 0.5
-            amp = 14000 if t in fortes else 2500
-            i0 = int(t * sr)
-            for j in range(int(0.04 * sr)):
-                if i0 + j < len(amost):
-                    amost[i0 + j] = max(-32000, min(32000, amost[i0 + j] + int(amp * math.sin(2 * math.pi * 70 * j / sr) * math.exp(-j / (0.01 * sr)))))
-        with wave.open(arq, "wb") as w:
-            w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
-            w.writeframes(amost.tobytes() if sys.byteorder == "little" else amost.byteswap() or amost.tobytes())
-        r = batidas(arq, 0, dur)
-        clipes = [{"arquivo": "x"}] * 20
-        cortes = [t1 for _, _, t1 in _cortes(clipes, {"cortar_nos_golpes": True, "gancho_min": 0.5}, 60 / r["bpm"],
-                                              12.0, 0.0, r["golpes"])][:-1]
-        perdidos = [f for f in fortes[1:] if f < 12 and not any(abs(f - c) <= 0.05 for c in cortes)]
-        fora = [c for c in cortes if not any(abs(f - c) <= 0.05 for f in fortes)]
-        passou = not perdidos and not fora
-        ok &= passou
-        print(f"{'ok ' if passou else 'ERRO'} cortes nos golpes: {cortes}; perdidos {perdidos}; fora {fora}")
+    # corte nos golpes, sem calibrar para uma música: seis gêneros sintéticos com gabarito (bumbo, caixa, chimbal),
+    # baixo e ruído por cima. Exige: BPM certo (oitava aceita), cortes em som real e clipe médio de 0,45 a 2,5 s.
+    generos = {  # bpm, bumbo e caixa em semicolcheias do compasso (0-15), chimbal a cada n semicolcheias
+        "house": (124, [0, 4, 8, 12], [4, 12], 2),
+        "funk": (130, [0, 3, 6, 10], [4, 12], 1),
+        "trap": (140, [0, 7, 10], [8], 1),
+        "reggaeton": (95, [0, 4, 8, 12], [3, 6, 11, 14], 2),
+        "pop": (100, [0, 8, 10], [4, 12], 2),
+        "balada": (72, [0], [8], 4),
+    }
+    for nome, (bpm, bumbo, caixa, chimbal) in generos.items():
+        with tempfile.TemporaryDirectory() as d:
+            arq = os.path.join(d, nome + ".wav")
+            sr, dur = 22050, 16.0
+            rnd = random.Random(nome)
+            amost = [rnd.gauss(0, 900) + 900 * math.sin(2 * math.pi * 0.7 * k / sr) * rnd.gauss(0, 1) for k in range(int(sr * dur))]
+            semi, gabarito = 60 / bpm / 4, []
+
+            def bate(t, amp, freq, decai, ruido=False):
+                i0 = int(t * sr)
+                for j in range(int(decai * 6 * sr)):
+                    if i0 + j < len(amost):
+                        som = rnd.gauss(0, 1) if ruido else math.sin(2 * math.pi * freq * j / sr)
+                        amost[i0 + j] += amp * som * math.exp(-j / (decai * sr))
+            for compasso in range(int(dur / (16 * semi)) + 1):
+                base = compasso * 16 * semi
+                for q in range(16):
+                    t = base + q * semi
+                    if t >= dur:
+                        break
+                    if q in bumbo:
+                        bate(t, 14000, 60, 0.03); gabarito.append(t)
+                    if q in caixa:
+                        bate(t, 9000, 0, 0.02, True); gabarito.append(t)
+                    if q % chimbal == 0:
+                        bate(t, 1500, 0, 0.004, True); gabarito.append(t)
+                    if q in (0, 8):
+                        bate(t, 3000, 110, 0.15)  # baixo
+            mx = max(abs(x) for x in amost) or 1
+            pcm = array.array("h", [int(32000 * x / mx) for x in amost])
+            with wave.open(arq, "wb") as w:
+                w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
+                w.writeframes(pcm.tobytes() if sys.byteorder == "little" else pcm.byteswap() or pcm.tobytes())
+            r = batidas(arq, 0, dur)
+            oitava = min(abs(r["bpm"] / bpm - f) for f in (0.5, 1, 2)) < 0.02
+            cortes = _fronteiras(r["golpes"], 0.0, 15.0, {"gancho_min": 1.0}, 60 / r["bpm"], True)
+            no_som = [c for c in cortes if any(abs(c - g) <= 0.04 for g in gabarito)]
+            media = 15.0 / (len(cortes) + 1)
+            passou = oitava and len(no_som) == len(cortes) and 0.45 <= media <= 2.5
+            ok &= passou
+            print(f"{'ok ' if passou else 'ERRO'} {nome:9s} bpm {bpm} -> {r['bpm']}; cortes em som real "
+                  f"{len(no_som)}/{len(cortes)}; clipe médio {media:.2f} s")
     return ok
 
 
