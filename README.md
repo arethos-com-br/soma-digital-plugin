@@ -1,6 +1,6 @@
 # Soma Digital — plugin de edição
 
-Plugin para o ChatGPT/Codex desktop e para o Claude que ajuda a equipe da Soma Digital a editar vídeos sociais (Reels, vertical 9:16). Quem usa coloca os brutos numa pasta do Drive, descreve o pedido em linguagem natural e recebe um **draft editável no CapCut**, pronto para revisar. Feito pela [Arethos](https://github.com/arethos-tech).
+Plugin para o ChatGPT/Codex desktop e para o Claude que ajuda a equipe da Soma Digital a editar vídeos sociais (Reels, vertical 9:16). Quem usa coloca os brutos numa pasta do Drive, descreve o pedido em linguagem natural e recebe um **draft editável no CapCut**, pronto para revisar. Feito pela [Arethos](https://github.com/arethos-com-br).
 
 Status: MVP em validação. O fluxo e a instalação abaixo ainda estão sendo testados do ponto de vista de quem vai usar.
 
@@ -87,7 +87,7 @@ Cada pedido usa um único modo.
 Requisitos: app desktop do ChatGPT, plugin oficial do [CapCut](https://www.capcut.com/tools/capcut-x-codex) instalado e autorizado, e o conector do Google Drive habilitado.
 
 ```bash
-codex plugin marketplace add arethos-tech/soma-digital-plugin
+codex plugin marketplace add arethos-com-br/soma-digital-plugin
 ```
 
 Depois instale o plugin:
@@ -103,7 +103,7 @@ Ou, pelo app: reinicie, abra o diretório de plugins, escolha o marketplace "Som
 Claude Code 2.1.275 ou mais novo:
 
 ```bash
-claude plugin marketplace add arethos-tech/soma-digital-plugin
+claude plugin marketplace add arethos-com-br/soma-digital-plugin
 claude plugin install soma-digital@soma-digital
 ```
 
