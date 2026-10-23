@@ -15,7 +15,7 @@ Regras fixas:
 - Não usar o AI Lab do CapCut (AI rough cut, ferramentas com `capcut_ailab` no nome), nem para o corte inicial: ele refaz o plano e ignora o nosso.
 - Música: a que indicarem ou uma em alta (ver `buscar-tendencias`). Não cheque nem mencione licença ou direitos: o uso é como no Instagram.
 
-Duas rotas. **Local** (padrão): renderiza o MP4 com ffmpeg, cortando na batida da música; ver [rota local](references/rota-local.md). **CapCut**: draft editável no editor, sem corte na batida; use quando pedirem para editar no CapCut. A rota CapCut precisa de acesso ao CapCut na sessão; se faltar, avise e pare. Os nomes das ferramentas e o que muda em cada ambiente (Codex, Claude) estão em [ambientes](references/ambientes.md).
+Duas rotas. **CapCut** (principal): monta um draft editável quando as ferramentas oficiais estão acessíveis e autorizadas. **Local** (se pedido): renderiza MP4 com FFmpeg; ver [rota local](references/rota-local.md). Se o CapCut não estiver acessível, informe o bloqueio e pare; não troque de rota em silêncio. Os nomes das ferramentas e os requisitos por ambiente (Codex, Claude) estão em [ambientes](references/ambientes.md).
 
 ## Fluxo
 

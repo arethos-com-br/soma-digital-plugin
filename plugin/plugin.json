@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "soma-digital",
-  "version": "0.10.3",
-  "description": "Planeja e monta vídeos sociais em MP4 local ou draft no CapCut.",
+  "version": "0.10.4",
+  "description": "Planeja vídeos sociais e monta drafts editáveis no CapCut; MP4 local sob pedido.",
   "author": {
     "name": "Arethos"
   },
@@ -18,7 +18,7 @@
       "interface": {
         "displayName": "Soma Digital",
         "shortDescription": "Planeje e monte vídeos sociais com seus brutos",
-        "longDescription": "Organiza os brutos, apresenta um plano e renderiza um MP4 local ou monta um draft editável no CapCut quando pedido.",
+        "longDescription": "Organiza os brutos, apresenta um plano e monta um draft editável no CapCut. Pode renderizar MP4 local quando pedido.",
         "developerName": "Arethos",
         "category": "Creativity",
         "capabilities": [

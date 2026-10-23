@@ -1,8 +1,8 @@
 {
   "name": "soma-digital",
   "displayName": "Soma Digital",
-  "version": "0.10.3",
-  "description": "Planeja e monta vídeos sociais em MP4 local ou draft no CapCut.",
+  "version": "0.10.4",
+  "description": "Planeja vídeos sociais e monta drafts editáveis no CapCut; MP4 local sob pedido.",
   "author": {
     "name": "Arethos"
   },

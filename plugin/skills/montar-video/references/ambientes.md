@@ -11,7 +11,9 @@ O fluxo é o mesmo em qualquer ambiente; muda o acesso ao CapCut. Use os recurso
 
 ## Codex / ChatGPT desktop
 
-O plugin oficial do CapCut traz tudo isso e a autorização. Siga as skills dele.
+O plugin oficial CapCut × Codex traz as ferramentas e o fluxo de autorização. Ele é separado do plugin Soma Digital. Conecte também o Google Drive quando os brutos ou referências estiverem lá; para o upload, mantenha cópias locais acessíveis dos arquivos escolhidos.
+
+O aplicativo CapCut Desktop é outra instalação. Ele não é requisito para instalar ou autenticar o MCP; se a pessoa quiser abrir ou ajustar o draft nesse aplicativo, confirme se está instalado e indique o [download oficial para Windows](https://www.capcut.com/resource/capcut-for-windows) quando faltar.
 
 ## Claude (Claude Code)
 
