@@ -4,7 +4,7 @@ Ajuda a planejar e montar vídeos sociais a partir dos brutos da equipe. O fluxo
 
 Os arquivos desta versão contêm instruções e scripts, sem vídeos, links de Drive ou dados pessoais de clientes.
 
-**Estado:** MVP em validação. A versão atual (0.10.4) ainda precisa de uma primeira instalação e execução no PC de uso.
+**Estado:** MVP em validação. A versão atual (0.10.5) ainda precisa de uma primeira instalação e execução no PC de uso.
 
 ## O que vem no plugin
 
