@@ -1,143 +1,78 @@
 # Soma Digital — plugin de edição
 
-Plugin para o ChatGPT/Codex desktop e para o Claude que ajuda a equipe da Soma Digital a editar vídeos sociais (Reels, vertical 9:16). Quem usa coloca os brutos numa pasta do Drive, descreve o pedido em linguagem natural e recebe um **draft editável no CapCut**, pronto para revisar. Feito pela [Arethos](https://github.com/arethos-com-br).
+Ajuda a planejar e montar vídeos sociais a partir dos brutos da equipe. A saída padrão é um **MP4 renderizado no computador**; um draft editável no CapCut é uma rota opcional, quando pedida. Feito pela [Arethos](https://github.com/arethos-com-br).
 
-Status: MVP em validação. O fluxo e a instalação abaixo ainda estão sendo testados do ponto de vista de quem vai usar.
+Os arquivos desta versão contêm instruções e scripts, sem vídeos, links de Drive ou dados pessoais de clientes.
 
-## Fluxo de uso
+**Estado:** MVP em validação. A versão atual (0.10.3) ainda precisa de uma primeira instalação e execução no PC de uso.
 
-```mermaid
-flowchart TD
-    P["Quero criar um vídeo novo"] --> V{"Google Drive e CapCut<br/>habilitados?"}
-    V -- "não" --> X["Avisa o que falta e para"]
-    V -- "sim" --> E["1. Iniciar vídeo, guiado<br/>cliente, pedido, pastas do Drive"]
-    E --> PL["2. Planejar<br/>examina os brutos e as referências"]
-    K["Conhecimento<br/>modos, repertório, biblioteca, tendências"] -.-> PL
-    PL --> PLANO["Plano curto<br/>trechos, timeline, gancho, efeitos, música, texto"]
-    PLANO --> AP{"Plano aprovado?"}
-    AP -- "ajustar" --> PL
-    AP -- "sim" --> ED["3. Editar<br/>versão recuperável do draft no CapCut"]
-    ED --> VF["4. Verificar<br/>mídia, ordem, duração, proporção, texto, áudio"]
-    VF --> EN["Entrega<br/>link do draft editável e resumo do que foi aplicado"]
-    EN --> RH["Revisão humana no CapCut"]
-    RH -- "ajustes" --> ED
-    RH -- "aprovado" --> FIM["Exportação e publicação<br/>fora do plugin"]
-```
+## O que vem no plugin
 
-Quem faz o quê em cada conversa:
+| Parte | Para que serve |
+|---|---|
+| `iniciar-video` | Localiza e examina brutos e referências; confirma cliente, pedido e arquivos. |
+| `montar-video` | Apresenta um plano, renderiza um MP4 local ou, se pedido, monta e confere um draft no CapCut. |
+| `buscar-tendencias` | Traz até três tendências e anúncios do nicho, com fonte e data. |
+| `montar-video/references/` | Modos de edição, requisitos por ambiente e repertório da Soma. |
+| `montar-video/receitas/` e `scripts/video_local.py` | Receitas de edição e render local com FFmpeg. |
 
-```mermaid
-sequenceDiagram
-    actor U as Equipe
-    participant C as ChatGPT com o plugin
-    participant D as Google Drive
-    participant K as CapCut
-    U->>C: pedido (pasta, plataforma, duração, modo)
-    C->>D: lê os brutos e as referências
-    C-->>U: plano para aprovar
-    U->>C: aprova
-    C->>K: envia os brutos do plano e cria o draft
-    C->>K: relê o draft e confere
-    C-->>U: link do draft e resumo
-    U->>K: revisa, ajusta, exporta
-```
+## Instalar no Windows — Codex desktop
 
-A skill `buscar-tendencias` também funciona sozinha: pedido de tendências, consulta das fontes, até 3 sugestões com fonte, data e aplicação ao job.
+É preciso ter o app desktop do ChatGPT com Codex e o [Codex CLI](https://developers.openai.com/codex/cli). No PowerShell, adicione o marketplace público:
 
-## Etapas em detalhe
-
-| Etapa | O que faz | Lê | Produz |
-|---|---|---|---|
-| Conferir | Verifica se Google Drive e CapCut estão habilitados | conectores da conversa | aviso e parada se faltar um |
-| 1. Iniciar vídeo (`iniciar-video`) | Acha e examina os brutos e as referências (inclusive em subpastas), deduz cliente, pedido e modo do que o material mostra e confirma tudo de uma vez; pergunta só o que não deduziu | o que quem usa disse, Drive | ficha do cliente e pedido confirmados |
-| 2. Planejar (`montar-video`) | Examina brutos e referências, registra só o que observou, consulta o conhecimento e pode sugerir gancho e efeitos | Drive, `references/`, `buscar-tendencias` | plano curto: formato, trechos, timeline, música, texto e, no máximo, uma dúvida |
-| Aprovação | Quem usa aprova ou pede ajuste; a aprovação cobre o envio dos brutos ao CapCut | plano | sinal para editar |
-| 3. Montar | Monta o draft clipe por clipe, seguindo o plano aprovado, com as funções de pós-edição do plugin do CapCut (sem AI Lab), e mantém uma versão recuperável | plano | draft no CapCut |
-| 4. Verificar | Relê o draft e confere mídia, ordem, duração, proporção, texto e áudio | draft | link e resumo; prévia só se foi gerada |
-| Revisão humana | Ajustes, exportação e publicação ficam com quem usa | draft | decisão |
-
-## Modos de entrega
-
-Cada pedido usa um único modo.
-
-| Modo | Resultado | Cuidados |
-|---|---|---|
-| `corte-musical-produto` | Sequência de clipes reais cortada pelo ritmo da música | marcar as batidas antes de cortar; tratar o áudio original dos brutos; gancho nos primeiros segundos |
-| `template-tela-dividida` | Dois espaços de vídeo, cada um com duração e enquadramento independentes | ajustes de um lado não alteram o outro; definir o que ocorre quando um clipe acaba antes |
-
-## Conhecimento que o plugin consulta
-
-| Arquivo | Conteúdo | Estado |
-|---|---|---|
-| `references/modos.md` | os dois modos e seus cuidados | pronto |
-| `references/repertorio.md` | transições, efeitos visuais e efeitos sonoros usados | pronto; equivalentes no CapCut medidos em 19/10/2026 (parte dos itens sem equivalente claro) |
-| `references/biblioteca.md` | templates, ganchos e estruturas com evidência | vazio; só entra o que for testado |
-| skill `buscar-tendencias` | o que está em alta e, para clientes de nicho específico, anúncios do nicho | pronto |
-
-## Regras fixas
-
-- Nunca publica. Preserva os originais do Drive.
-- Usa só os brutos do pedido: sem banco de imagens, mídia gerada ou imagem genérica.
-- Não inventa texto, chamada para ação nem logo; não exporta o vídeo final sem pedido.
-- Não usa o AI Lab do CapCut: o corte segue o plano aprovado, não um plano refeito pelo CapCut.
-- Respeita o que já foi alterado no CapCut por quem usa.
-
-## Instalar
-
-Requisitos: app desktop do ChatGPT, plugin oficial do [CapCut](https://www.capcut.com/tools/capcut-x-codex) instalado e autorizado, e o conector do Google Drive habilitado.
-
-```bash
+```powershell
 codex plugin marketplace add arethos-com-br/soma-digital-plugin
+codex plugin marketplace list
 ```
 
-Depois instale o plugin:
+O primeiro comando registra o catálogo; a instalação termina no app, conforme o [guia de marketplaces do Codex](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli). Feche e reabra o ChatGPT, abra **Plugins Directory**, escolha o marketplace **Soma Digital** e instale o plugin. Depois, inicie uma conversa nova no Codex com o plugin habilitado.
+
+## Primeiro vídeo: MP4 local
+
+Esta é a rota padrão e não exige conectores do Drive ou do CapCut. Requer Python 3, `ffmpeg` e `ffprobe` no `PATH`, além dos brutos e da música em uma pasta que o Codex consiga acessar. Se os arquivos estão no Drive, sincronize essa pasta no PC. O plugin usa a biblioteca padrão do Python; não requer pacotes `pip`.
+
+Se ainda não tiver Python, instale o [Python Install Manager](https://www.python.org/downloads/windows/) oficial, que instala a versão estável atual. Para instalar o FFmpeg, abra o PowerShell e rode:
+
+```powershell
+winget install -e --id Gyan.FFmpeg
+```
+
+Se preferir instalar o FFmpeg manualmente, escolha um build para Windows indicado na [página oficial de download](https://www.ffmpeg.org/download.html). Depois da instalação, feche e reabra o PowerShell.
+
+Confira no PowerShell:
+
+```powershell
+py --version
+ffmpeg -version
+ffprobe -version
+```
+
+Em uma conversa nova, informe o pedido e o caminho local. Exemplo:
+
+> Quero um Reels de 15 segundos no modo corte musical. Os brutos estão em `C:/Users/SeuUsuario/Videos/Projeto/Brutos` e a música em `C:/Users/SeuUsuario/Videos/Projeto/musica.mp3`. Mostre o plano e espere minha aprovação antes de renderizar o MP4 local.
+
+O plugin confirma o que entendeu, apresenta o plano e só renderiza depois da aprovação. Se não conseguir acessar os arquivos ou algum comando falhar, deve informar o bloqueio; não substitui o script em silêncio.
+
+## Draft editável no CapCut
+
+Peça explicitamente a rota CapCut. Ela exige o [plugin oficial do CapCut](https://www.capcut.com/tools/capcut-x-codex) instalado e autorizado no Codex; conecte o Google Drive quando os arquivos ou referências estiverem lá. Aprove o plano antes do envio dos brutos. O draft precisa de revisão humana no editor; o plugin não publica nem exporta o vídeo final automaticamente.
+
+## Instalar no Claude Code (opcional)
+
+O repositório também inclui o plugin para Claude Code. No Windows, Claude Code pode rodar nativamente ou no WSL; a rota CapCut nativa exige Git for Windows para a ferramenta Bash. Com Claude Code 2.1.292 ou mais recente, instale pelo PowerShell ou terminal:
 
 ```bash
-codex plugin add soma-digital@soma-digital
+claude plugin install soma-digital --marketplace arethos-com-br/soma-digital-plugin
 ```
 
-Ou, pelo app: reinicie, abra o diretório de plugins, escolha o marketplace "Soma Digital" e instale. Verificado pela CLI no Windows em 19/10/2026; o caminho pela interface do app ainda não foi testado.
+Para a rota CapCut no Claude Code, há configuração adicional do MCP e das skills oficiais do CapCut; veja [`references/ambientes.md`](plugin/skills/montar-video/references/ambientes.md) e o [guia oficial de instalação de plugins](https://code.claude.com/docs/en/plugins/install).
 
-## Instalar no Claude
+## Limites
 
-Claude Code 2.1.275 ou mais novo:
+- Usa os brutos do pedido; não busca stock nem gera imagens genéricas.
+- Não inventa texto, chamada para ação ou logo.
+- Preserva os originais. Aprovação, revisão final, exportação e publicação ficam com quem usa.
 
-```bash
-claude plugin marketplace add arethos-com-br/soma-digital-plugin
-claude plugin install soma-digital@soma-digital
-```
+## Validação pendente
 
-Depois, o CapCut (hoje o plugin oficial dele é só para Codex; não está neste repositório):
-
-1. Adicione o servidor e faça o login pelo `/mcp`: `claude mcp add --transport http capcut_creation https://www.capcut.com/api/external_mcp`.
-2. Instale localmente as skills `capcut-upload`, `capcut-stdraft-builder` e `web-collaborative-editing` do pacote oficial (veja a [página do CapCut × Codex](https://www.capcut.com/tools/capcut-x-codex)).
-3. Os brutos precisam estar em disco (Google Drive para desktop); o enviador do CapCut não lê direto do conector do Drive.
-4. `ffmpeg` no PATH, para examinar quadros e áudio dos brutos (Windows: `winget install Gyan.FFmpeg`).
-
-Rota local (0.5.0, 20/10/2026): renderiza o MP4 com ffmpeg e corta nos acentos da música, com receitas próprias (`corte-musical`, `tela-dividida`); ver `plugin/skills/montar-video/references/rota-local.md`. Testada no Linux e no Windows (ffmpeg 9, Python 3.14), resultado idêntico. Desde a 0.7.0 centraliza o produto e iguala o tamanho dele entre os clipes, com câmera lenta em rampa; desde a 0.8.0 troca de clipe no bumbo e no baixo da música, sem grade de BPM. Aprendizados de desenvolvimento em `AGENTS.md`.
-
-Detalhes do que muda por ambiente: `plugin/skills/montar-video/references/ambientes.md`. Status (19/10/2026, Windows, plugin 0.4.2): testado de ponta a ponta no Claude Code (Sonnet) e no app Codex (GPT-5.6), do pedido ao link do draft. As camadas do plano entram no draft: transições, filtro, efeitos de vídeo e sonoros (numa das duas rodadas o CapCut descartou Radial Blur 2 e Cromático ao salvar, causa desconhecida; na outra o Radial Blur 2 entrou). Corte na batida não é possível pela API do CapCut (sem BPM nem marcas de batida); o draft vai em grade regular e a entrega avisa. O plugin não fixa modelo: usa o que o host tiver configurado. Transições do CapCut vêm de uma lista curada de 20, sem escolha por texto. A imagem final no editor ainda não foi conferida.
-
-## Usar
-
-Quem usa só grava e coloca os vídeos no Drive; o plugin guia o resto. Abra uma conversa nova e diga o que quer (no Claude, também `/soma-digital:iniciar-video`), por exemplo:
-
-> Quero criar um vídeo novo para um cliente.
-
-A skill `iniciar-video` examina o que está no Drive, mostra o que entendeu sobre o cliente e o pedido, pergunta só o que faltou e segue para o plano. Quem já sabe o que quer pode mandar tudo de uma vez:
-
-> Cliente: loja de moda feminina, público jovem, tom descontraído; destaque: coleção nova. Brutos na pasta Agência e referências na pasta Ref. Reels de 15 segundos para Instagram, corte musical de produto. Me mostra o plano antes de editar.
-
-## Estrutura do repositório
-
-```
-.agents/plugins/marketplace.json     catálogo para instalar pelo Codex
-plugin/plugin.json                   manifesto
-plugin/.claude-plugin/plugin.json      manifesto para o Claude
-.claude-plugin/marketplace.json      catálogo para instalar pelo Claude
-plugin/skills/iniciar-video/         início guiado (cliente, pedido, pastas)
-plugin/skills/montar-video/          plano, montagem e verificação (SKILL.md) e references/
-plugin/skills/buscar-tendencias/     tendências e anúncios do nicho
-```
-
-Não há vídeos, links de Drive nem dados pessoais neste repositório.
+O histórico registra testes no Windows para versões anteriores (rota local 0.5.0 e CapCut 0.4.2). Isso não confirma a instalação nem a execução da versão atual no PC de uso. A primeira validação deve confirmar os três requisitos no PowerShell e concluir um vídeo de amostra com arquivos acessíveis naquela máquina.

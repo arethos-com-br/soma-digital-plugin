@@ -1,6 +1,6 @@
 ---
 name: montar-video
-description: Planeja, monta e confere um vídeo da Soma Digital (MP4 cortado na batida, renderizado no computador, ou draft editável no CapCut), a partir dos brutos do Drive e da ficha do cliente. Use depois de iniciar-video, ou quando o pedido já trouxer cliente, pasta dos brutos e modo (corte musical, tela dividida).
+description: Planeja, monta e confere um vídeo da Soma Digital (MP4 cortado na batida, renderizado no computador, ou draft editável no CapCut), a partir de brutos locais ou do Drive e da ficha do cliente. Use depois de iniciar-video, ou quando o pedido já trouxer cliente, arquivos e modo (corte musical, tela dividida).
 ---
 
 # Montar vídeo

@@ -19,7 +19,7 @@ Caminhos relativos ao plano. Campos do plano sobrescrevem os da receita.
   "receita": "corte-musical",
   "musica": "musica.m4a",
   "duracao": 15,
-  "clipes": [{"arquivo": "brutos/IMG_5291.MP4", "inicio": 0.5}, {"arquivo": "brutos/IMG_0074.MP4", "inicio": 3}],
+  "clipes": [{"arquivo": "brutos/clipe-01.mp4", "inicio": 0.5}, {"arquivo": "brutos/clipe-02.mp4", "inicio": 3}],
   "saida": "video.mp4"
 }
 ```
@@ -35,7 +35,7 @@ Caminhos relativos ao plano. Campos do plano sobrescrevem os da receita.
 
 ## Corte na música
 
-Com `cortar_nos_golpes`, a troca de clipe cai no grave da música (bumbo e baixo, abaixo de 150 Hz), não numa grade de BPM: a batida não é cíclica, e o corte segue os golpes que a faixa tem de fato. Entram os golpes do grave acima de `golpe_piso` (0,6 da força dos golpes fortes daquela faixa), do mais forte para o mais fraco, com `corte_min` entre cortes; onde o grave bate forte e junto os clipes ficam curtos, onde some ficam longos. Vão maior que `corte_max` ganha o golpe mais forte do meio; nunca corta no silêncio. Faixa sem grave que bata (voz, violão) corta nos golpes do som todo; o render diz qual usou em `corte_no`. O gancho termina no golpe mais forte entre `gancho_min` e `gancho_max`. Testado em seis gêneros sintéticos (todo corte em bumbo ou baixo, nunca na caixa ou no chimbal) e na música do A01, onde os cortes caem nos mesmos golpes em que a Vitória cortou: `teste` repete essa conferência.
+Com `cortar_nos_golpes`, a troca de clipe cai no grave da música (bumbo e baixo, abaixo de 150 Hz), não numa grade de BPM: a batida não é cíclica, e o corte segue os golpes que a faixa tem de fato. Entram os golpes do grave acima de `golpe_piso` (0,6 da força dos golpes fortes daquela faixa), do mais forte para o mais fraco, com `corte_min` entre cortes; onde o grave bate forte e junto os clipes ficam curtos, onde some ficam longos. Vão maior que `corte_max` ganha o golpe mais forte do meio; nunca corta no silêncio. Faixa sem grave que bata (voz, violão) corta nos golpes do som todo; o render diz qual usou em `corte_no`. O gancho termina no golpe mais forte entre `gancho_min` e `gancho_max`. Testado em seis gêneros sintéticos; confira também a faixa e os cortes da referência aprovada para cada job.
 
 O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 ms, golpes fortes e quantos ganharam corte), `cortes` e `clipes` (trecho, velocidade e zoom de cada um); cite os números na entrega.
 
@@ -43,7 +43,7 @@ O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 
 
 - `ordem: contraste`: mantém o primeiro clipe (gancho) e encadeia os outros do mais diferente para o mais diferente do anterior (cor média), para não juntar planos iguais.
 - `pulsos`: empurrão de zoom de 4% nos golpes fortes que caem dentro de um clipe.
-- `enquadrar`: acha o produto em cada quadro (o que destoa do fundo, sem contar a mão) e recorta seguindo ele: centro do quadro e largura `tamanho_alvo` (0,5, medida no A02), com zoom até `zoom_teto` (1,35, para não perder nitidez). Planos de pessoa ou de loja não têm produto destacado e ficam como estão; neles o trecho escolhido é o que termina no gesto concluído (pôs o óculos e olhou para a câmera), para o corte não chegar antes.
+- `enquadrar`: acha o produto em cada quadro (o que destoa do fundo, sem contar a mão) e recorta seguindo ele: centro do quadro e largura `tamanho_alvo` (0,5 por padrão), com zoom até `zoom_teto` (1,35, para preservar nitidez). Planos de pessoa ou de loja não têm produto destacado e ficam como estão; neles o trecho escolhido termina depois do gesto concluído, para o corte não chegar antes.
 - `lento` (0.7), `lento_min` (0,9 s) e `rampa`: nos clipes longos, entra no golpe em velocidade normal e desacelera até 0,7x; os quadros intermediários são criados por fluxo de movimento, sem engasgar a partir de 30 qps.
 - `sfx_nas_transicoes`: o som acompanha a transição visual (zoom e desfoque: swoosh; flash com falha: glitch); corte seco fica sem som. O volume de cada efeito é medido contra a música naquele corte: o pico do efeito fica `sfx_abaixo_db` (8 dB) abaixo do nível da música, então nunca a cobre. O render lista os níveis em `efeitos_sonoros`.
 - `sfx_pasta`: pasta de efeitos sonoros da agência, com uma subpasta por nome (`swoosh`, `pop`, `click`, `glitch`, `vento`, `typing`, `typewriting`, `impacto`) e quantas versões quiser em cada; as versões se alternam e o ponto mais forte de cada som cai no corte. Sem o campo, o render usa a pasta `sfx` que estiver junto dos brutos (`"sfx_pasta": false` desliga); sem pasta, os sons são sintetizados.
@@ -52,9 +52,9 @@ O render devolve `corte_no`, `sincronia` (cortes, cortes num golpe forte a ±40 
 - `transicao_gancho`: a transição do fim do gancho (`chicote` na receita).
 - `visual_pasta`: pasta de efeitos visuais da agência, com subpastas `luz`, `glitch` e `queimado` (vídeos curtos de fundo preto). O efeito entra sobre a imagem no corte, misturado em "tela" (o preto não muda nada) com opacidade `sobreposicao_opacidade` (0,45), e o quadro mais claro dele cai no golpe. Sem o campo, o render usa a pasta `visual` junto dos brutos (`false` desliga); sem pasta, `luz`, `glitch` e `queimado` caem nos equivalentes feitos por filtro. O render diz em `pacotes` quais pastas usou.
 
-## Repertório (D01) na rota local
+## Repertório na rota local
 
-| Da lista dela | Campo e valor |
+| Item do repertório | Campo e valor |
 |---|---|
 | Zoom In / Zoom Out | `transicao`: `zoom_in`, `zoom_out` |
 | Fade In/Out | `transicao`: `fade` |

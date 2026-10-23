@@ -464,7 +464,7 @@ def _ordem_contraste(clipes):
     return [clipes[k] for k in ordem]
 
 
-# Repertório da Vitória (D01) em filtros do ffmpeg. Transição = início do clipe que entra, no golpe.
+# Repertório traduzido em filtros do ffmpeg. Transição = início do clipe que entra, no golpe.
 TRANSICOES = {
     "corte": "",
     "flash": "fade=t=in:st=0:d=0.12:color=white",
@@ -500,7 +500,7 @@ SEM_EQUIVALENTE = set()
 # calculada em meia resolução, numa thread só (a expressão guarda valores em st()/ld(), que se embaralham entre
 # threads e viram ruído) e no máximo uma por vídeo.
 XFADE = {
-    "combinar": ("fade", 10),            # Combinar da Vitória (dissolve suave)
+    "combinar": ("fade", 10),            # Dissolve suave
     "desfoque_passagem": ("hblur", 8),   # passagem com desfoque horizontal
     "zoom_passagem": ("zoomin", 8),      # passagem com zoom; o mais perto do Radial Blur
     "radial_blur": ("zoomin", 8),
@@ -1005,10 +1005,10 @@ def teste():
             ok &= passou
             print(f"{'ok ' if passou else 'ERRO'} {nome:9s} bpm {bpm} -> {r['bpm']}; cortes no grave "
                   f"{len(no_som)}/{len(cortes)}; clipe médio {media:.2f} s")
-    # início da música: efeito sonoro solto em 0,43 s e a batida em sequência só a partir de 3,62 s (caso do A01)
-    marcas = [[0.43, 0.9]] + [[3.62 + k * 2 + d, 1.0] for k in range(6) for d in (0, 0.5)]
+    # Fixture sintética: evento fraco na introdução e sequência regular depois dela.
+    marcas = [[0.35, 0.9]] + [[3.2 + k * 2 + d, 1.0] for k in range(6) for d in (0, 0.5)]
     cabe, curta = _inicio_musica(marcas, 0.6, 2.5, 5.0, 0.1), _inicio_musica(marcas, 0.6, 2.5, 1.2, 0.1)
-    passou = cabe == (3.62, 3.62) and curta == (0.43, 3.62)
+    passou = cabe == (3.2, 3.2) and curta == (0.35, 3.2)
     ok &= passou
     print(f"{'ok ' if passou else 'ERRO'} início da música: pula a introdução quando cabe {cabe}, avisa quando não cabe {curta}")
     # transições entre clipes: com sobreposição (xfade), o vídeo tem que sair com o número exato de quadros

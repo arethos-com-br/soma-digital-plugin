@@ -1,5 +1,5 @@
 {
-  "descricao": "Anúncio com quem fala (exemplo A02): cima-baixo com a fala em cima e o produto embaixo, grade de 4 faixas, depois produto em tela cheia. A voz segue contínua; a música fica de fundo. Os cortes do produto caem nos golpes da música de fundo (1,2 a 3 s por clipe).",
+  "descricao": "Anúncio com fala: tela dividida com a fala em cima e o produto embaixo, grade de 4 faixas, depois produto em tela cheia. A voz segue contínua; a música fica de fundo. Os cortes do produto caem nos golpes da música de fundo (1,2 a 3 s por clipe).",
   "no_ritmo": true,
   "enquadrar": true,
   "flash_no_corte": "blocos",

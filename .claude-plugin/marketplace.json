@@ -8,7 +8,7 @@
     {
       "name": "soma-digital",
       "source": "./plugin",
-      "description": "Edição de vídeos sociais para a Soma Digital: planeja, edita os brutos do Drive no CapCut, propõe edições e acompanha tendências.",
+      "description": "Planeja e monta vídeos sociais em MP4 local ou draft no CapCut.",
       "category": "Creativity"
     }
   ]

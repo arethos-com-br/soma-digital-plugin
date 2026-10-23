@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "soma-digital",
-  "version": "0.10.2",
-  "description": "Edição de vídeos sociais para a Soma Digital: planeja, edita os brutos do Drive no CapCut, propõe edições e acompanha tendências.",
+  "version": "0.10.3",
+  "description": "Planeja e monta vídeos sociais em MP4 local ou draft no CapCut.",
   "author": {
     "name": "Arethos"
   },
@@ -17,8 +17,8 @@
       "onboardingSkill": "./skills/iniciar-video/SKILL.md",
       "interface": {
         "displayName": "Soma Digital",
-        "shortDescription": "Edite vídeos sociais a partir dos brutos no Drive",
-        "longDescription": "Transforma os brutos de uma pasta do Drive em um plano aprovado e em um draft editável no CapCut, usando o repertório e os templates da Soma Digital.",
+        "shortDescription": "Planeje e monte vídeos sociais com seus brutos",
+        "longDescription": "Organiza os brutos, apresenta um plano e renderiza um MP4 local ou monta um draft editável no CapCut quando pedido.",
         "developerName": "Arethos",
         "category": "Creativity",
         "capabilities": [

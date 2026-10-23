@@ -6,9 +6,9 @@ Plugin público de edição da Soma Digital (ChatGPT/Codex e Claude). O que é i
 
 Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `montar-video`.
 
-**Critério vem da cliente, não de mim**
-- Antes de mudar estética ou ritmo, olhe os exemplos e referências da cliente e meça neles. Exemplos: o enquadramento do produto foi tirado do A02 (centro, cerca de metade da largura); os pontos de corte foram conferidos com os cortes que ela fez no A01.
-- Mudança feita sem ler o material dela já foi desfeita duas vezes (templates do CapCut, 0.4.5 → 0.4.6).
+**Critério vem do briefing e das referências**
+- Antes de mudar estética ou ritmo, examine e meça nas referências aprovadas para o job. Mantenha preferências específicas do job fora do pacote público.
+- Não altere uma receita com base em suposições; confira as referências e o resultado primeiro.
 
 **Corte na música**
 - Corte no grave (bumbo e baixo), não em grade de BPM nem em qualquer golpe do som todo.
@@ -16,8 +16,8 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
   - Golpe de banda larga pega caixa e chimbal.
 - Nada calibrado para uma música só. Limiar sempre relativo à própria faixa (percentil 95 dos golpes dela).
 - Fluxo de energia em log sem piso iguala o vazamento grave da caixa a um bumbo. Por isso o piso é metade da energia grave mediana da faixa.
-- Áudio tirado de um vídeo já editado não é a música: traz os efeitos sonoros e a voz daquela edição. O A01 abre com 3,5 s de efeito de transição e voz antes da batida, e o Reels saiu com um "glitch" sem nada na tela. O início automático pula até a batida em sequência; se a faixa útil for mais curta que o vídeo, o render avisa em vez de esconder.
-- Validar em três frentes: o `teste` (seis gêneros sintéticos com gabarito de bumbo e baixo), uma faixa real e os cortes de um exemplo da cliente.
+- Áudio tirado de um vídeo já editado pode trazer efeitos sonoros e voz da edição anterior. O início automático pula a introdução quando há música suficiente; se a faixa útil for curta, o render avisa.
+- Validar em três frentes: o `teste` (seis gêneros sintéticos com gabarito de bumbo e baixo), uma faixa real e uma referência aprovada mantida localmente.
 
 **Tempo e quadros**
 - Toda mudança de velocidade (slow, rampa, interpolação de quadros) pode sobrar ou faltar quadro, e a sobra acumula: na 0.7.0 cada clipe em slow ganhava um quadro e o vídeo atrasava até 170 ms em relação à música.
@@ -27,7 +27,7 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
 - O JSON do render diz o que foi planejado e não prova nada. Medir no MP4:
   - cortes visíveis na imagem (±1 quadro);
   - cortes no grave do áudio final (±40 ms);
-  - loudness (ebur128; os exemplos dela ficam em cerca de −14,7 LUFS);
+  - loudness (ebur128; comparar com a meta definida para o job, se houver);
   - folha de quadros com uma cruz no centro, olhada de fato.
 - Entregar só com esses números, sem afirmar além deles.
 
@@ -44,11 +44,11 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
 - Pacotes do YouTube: tirar quadros com texto ("TRANSITION 2") e fundo verde. Formas abstratas podem ser esticadas do 16:9 para o 9:16; cortar o centro perde a luz, que fica nas bordas.
 
 **Escolha do trecho e enquadramento**
-- "Mais movimento" escolhe a mão girando o produto perto da câmera.
-  - Produto: centralizado, tamanho perto do alvo, sem encostar na borda.
-  - Pessoa: a janela que termina no gesto concluído (pôs o óculos e olhou para a câmera).
-- O detector de produto confunde lente prateada com asfalto. Produto encostado na borda é evitado, mas revise a folha.
-- Zoom até 1,35: mais que isso perde nitidez nos brutos de 720 px.
+- Escolha trechos que mostrem a ação relevante para o briefing; confira a folha de quadros antes de entregar.
+- Produto: centralizado, tamanho próximo ao alvo e sem encostar na borda.
+- Pessoa: escolha uma janela que mostre o gesto concluído, sem cortar a ação.
+- O detector pode confundir reflexos e elementos do cenário com o produto; revise a folha.
+- Limite o zoom para preservar a nitidez de fontes em baixa resolução.
 
 **Câmera lenta**
 - Moderada (0,7x) e em rampa: entra no golpe em velocidade normal e desacelera.
@@ -58,10 +58,10 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
 **Windows e o agente do ChatGPT**
 - Rodar `py -B -I` para não gravar `.pyc` nem ler módulos do diretório atual.
 - O ffmpeg 9 não tem `-filter_complex_script`: o grafo vai inline, com limite de 30 000 caracteres.
-- Testar no PC, com o mesmo app que a cliente usa, antes de mostrar.
+- Validar no PC e no mesmo app que serão usados na entrega, antes de apresentar o resultado.
 - Se o script falhar, o agente deve parar e informar o erro.
-- Na 0.10.0 o GPT-5.6 Terra tratou os pacotes de efeitos como "stock" e não os usou, trocou as transições da receita, desligou os efeitos sonoros, deixou 5 brutos de fora sem dizer e citou na entrega um clipe que não estava no vídeo. Correção: o render acha as pastas `sfx` e `visual` sozinho, a skill proíbe mudar a receita sem pedido e manda descrever o vídeo só pelo JSON do render. Regra geral: o que pode ser decidido no script não fica na mão do agente. Ele já copiou o script para contornar uma falha sem avisar.
+- O agente deve seguir a receita, usar os pacotes locais e descrever somente o que aparece no resultado do render. Se o script falhar, pare e informe o erro; não o copie nem o contorne em silêncio. O que puder ser decidido no script deve ficar definido nele.
 
 **Repositório**
-- Nada de `.pyc` nem de dado de cliente.
+- Nada de `.pyc`, mídia, links, identificadores ou dados pessoais de clientes no repositório público; use fixtures sintéticas e mantenha referências reais localmente.
 - Versão sobe nos dois manifestos (`plugin/plugin.json` e `plugin/.claude-plugin/plugin.json`).
