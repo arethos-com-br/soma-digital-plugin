@@ -13,4 +13,4 @@ Fontes, da mais confiável à menos:
 2. Templates em alta no CapCut: busca de templates do plugin do CapCut e a seção de tendências do app.
 3. Áudios em alta no Instagram e no CapCut: observação manual; não há lista oficial confirmada.
 
-Entregue no máximo 3 sugestões, cada uma com o que é, fonte e data, e como aplicar ao job (modo, gancho, efeito). Diga o que não pôde ser verificado. Não colete em massa nem estime "potencial viral".
+Entregue no máximo 3 sugestões por busca, cada uma com o que é, fonte e data, a duração e o formato observados, e como aplicar ao job (modo, gancho, efeito). Diga quantos exemplos sustentam a duração e o que não pôde ser verificado. Não colete em massa nem estime "potencial viral".
