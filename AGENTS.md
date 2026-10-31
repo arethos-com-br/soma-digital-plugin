@@ -59,7 +59,6 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
 - Rodar `py -B -I` para não gravar `.pyc` nem ler módulos do diretório atual.
 - O ffmpeg 9 não tem `-filter_complex_script`: o grafo vai inline, com limite de 30 000 caracteres.
 - Validar no PC e no mesmo app que serão usados na entrega, antes de apresentar o resultado.
-- Se o script falhar, o agente deve parar e informar o erro.
 - O agente deve seguir a receita, usar os pacotes locais e descrever somente o que aparece no resultado do render. Se o script falhar, pare e informe o erro; não o copie nem o contorne em silêncio. O que puder ser decidido no script deve ficar definido nele.
 
 **Repositório**
