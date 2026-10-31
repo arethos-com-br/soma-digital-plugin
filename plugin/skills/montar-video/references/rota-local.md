@@ -1,6 +1,6 @@
 # Rota local (sem CapCut)
 
-Monta e renderiza o MP4 no computador de quem usa, com corte na batida da música. Precisa do ffmpeg no PATH; o script usa só a biblioteca padrão do Python. Sem ffmpeg: no Windows `winget install Gyan.FFmpeg`, no macOS `brew install ffmpeg`; peça antes de instalar.
+Monta e renderiza o MP4 no computador de quem usa, com corte na batida da música. Precisa de Python 3, ffmpeg e ffprobe no PATH; o script usa só a biblioteca padrão do Python. Sem ffmpeg: no Windows `winget install Gyan.FFmpeg`, no macOS `brew install ffmpeg`; peça antes de instalar.
 
 Rodar: `py -B -I scripts/video_local.py render plano.json` no Windows (`python3` no macOS/Linux). `musica <arquivo> <duração>` confere a faixa antes do plano; `batidas <musica>` mostra BPM e acentos; `teste` confere o detector.
 

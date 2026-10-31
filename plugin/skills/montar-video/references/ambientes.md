@@ -18,8 +18,8 @@ O aplicativo CapCut Desktop é outra instalação. Ele não é requisito para in
 ## Claude (Claude Code)
 
 - **Windows:** o fluxo de upload usa Bash (`printf`). No Claude Code nativo, instale Git for Windows para habilitar a ferramenta Bash; ou execute Claude Code no WSL.
-- **Servidor:** `capcut_creation` em `https://www.capcut.com/api/external_mcp`, com login OAuth pelo `/mcp`. Sem login as ferramentas `capcut_*` não aparecem; avise e pare.
-- **Skills do CapCut:** as três acima vêm do pacote oficial do CapCut (licença própria, não está neste repositório); precisam estar instaladas localmente. Se não estiverem, avise e pare.
+- **Servidor:** `capcut_creation` em `https://www.capcut.com/api/external_mcp`, com login OAuth pelo `/mcp`. Sem login as ferramentas `capcut_*` não aparecem.
+- **Skills do CapCut:** as três acima vêm do pacote oficial do CapCut (licença própria, não está neste repositório); precisam estar instaladas localmente.
 - **Caminho local obrigatório:** o enviador só lê arquivos em disco. O download do Drive pelo conector passa por base64 no modelo e não serve para vídeo; use a pasta sincronizada (Google Drive para desktop). Se os brutos não estiverem em disco, diga isso e pare.
 - **Ticket de upload:** o enviador lê o ticket do stdin, sem TTY: `printf '%s' "<ticket>" | node <skill>/scripts/capcut-upload.mjs --files '[...]' --upload-ticket-stdin --json`. Nunca em argumento nem em log. No Windows, use barras normais nos caminhos do JSON (`C:/Users/...`); barras invertidas quebram o JSON.
 - **Montar o draft:** use as funções de `capcut-stdraft-builder` (`apply_video`, `apply_transition`, `apply_video_effect`, `apply_filter`, `apply_audio`) num script; no Windows, `py -B -I`. **Ordem dos clipes:** o CapCut pode mudar a ordem ao salvar ids aleatórios. Renomeie-os para `v01`, `v02`… na ordem do tempo antes do envio e confira o draft salvo.
