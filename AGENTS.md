@@ -53,7 +53,7 @@ Erros que já aconteceram, com a regra que os evita. Leia antes de mexer no `mon
 **Câmera lenta**
 - Moderada (0,7x) e em rampa: entra no golpe em velocidade normal e desacelera.
 - Slow forte (0,5x) no gancho cortou o gesto antes de ele acontecer.
-- Interpolação por fluxo de movimento (minterpolate) em meia resolução: render de cerca de 30 s no PC, em vez de 11 s.
+- A interpolação por fluxo de movimento (minterpolate) é o passo mais lento do render; calcule-a em meia resolução.
 
 **Windows e o agente do ChatGPT**
 - Rodar `py -B -I` para não gravar `.pyc` nem ler módulos do diretório atual.
