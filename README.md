@@ -27,7 +27,11 @@ O primeiro comando registra o catálogo; a instalação termina no app, conforme
 
 ## Primeiro vídeo: draft no CapCut
 
-O fluxo principal usa o plugin oficial [CapCut × Codex](https://www.capcut.com/tools/capcut-x-codex), instalado e autorizado no Codex. Conecte o Google Drive se os brutos ou referências estiverem lá. Para o upload, os arquivos escolhidos também precisam estar numa pasta local acessível; sincronize a pasta do Drive no PC. Instalar o Soma Digital não instala nem autentica esses serviços.
+O fluxo principal usa o plugin oficial [CapCut × Codex](https://www.capcut.com/tools/capcut-x-codex). Se ele não estiver instalado e autorizado, instale-o pela página oficial e peça ao usuário, uma de cada vez e dizendo para que serve:
+
+1. autorizar o plugin do CapCut;
+2. conectar o Google Drive, se os arquivos estiverem lá;
+3. liberar uma pasta local com os arquivos escolhidos, para o upload.
 
 Em uma conversa nova, informe o pedido e onde estão os brutos e as referências. Exemplo:
 
@@ -35,7 +39,7 @@ Em uma conversa nova, informe o pedido e onde estão os brutos e as referências
 
 Revalide e entregue o draft final para o usuário revisar; não é necessário exportar nem publicar o vídeo.
 
-O aplicativo **CapCut Desktop** é separado do plugin e da conexão MCP. Instale-o pelo [site oficial](https://www.capcut.com/resource/capcut-for-windows) se ela quiser abrir ou ajustar o draft nesse aplicativo; a ausência do app, sozinha, não confirma falha do MCP. A disponibilidade pode variar por versão do ChatGPT, conta e região, conforme a [página oficial](https://www.capcut.com/tools/capcut-x-codex).
+O **CapCut Desktop** é opcional e separado: instale-o pelo [site oficial](https://www.capcut.com/resource/capcut-for-windows) só se o usuário quiser abrir ou ajustar o draft nele. Sem o app, não conclua falha do MCP. A disponibilidade varia por versão do ChatGPT, conta e região, conforme a [página oficial](https://www.capcut.com/tools/capcut-x-codex).
 
 ## MP4 local (alternativa, quando pedido)
 
