@@ -1,10 +1,8 @@
 # Soma Digital — plugin de edição
 
-Ajuda a planejar e montar vídeos sociais a partir dos brutos da equipe. O fluxo principal entrega um **draft editável no CapCut**; o MP4 local fica disponível quando pedido. Feito pela [Arethos](https://github.com/arethos-com-br).
+Ajuda a planejar e montar vídeos sociais a partir dos brutos fornecidos ou referenciados pelo usuário. O fluxo principal entrega um **draft editável no CapCut**; o MP4 local fica disponível quando pedido. Feito pela [Arethos](https://github.com/arethos-com-br).
 
 Os arquivos desta versão contêm instruções e scripts, sem vídeos, links de Drive ou dados pessoais de clientes.
-
-**Estado:** MVP em validação. A versão atual (0.10.5) ainda precisa de uma primeira instalação e execução no PC de uso.
 
 ## O que vem no plugin
 
@@ -35,7 +33,7 @@ Em uma conversa nova, informe o pedido e onde estão os brutos e as referências
 
 > Quero montar um draft editável no CapCut para um Reels de 12 segundos. Os brutos estão em [pasta do Drive] e as referências em [pasta de referências]. Mostre o plano e espere minha aprovação antes de montar.
 
-O draft precisa de revisão humana. O plugin não exporta nem publica o vídeo final automaticamente.
+Revalide e entregue o draft final para o usuário revisar; não é necessário exportar nem publicar o vídeo.
 
 O aplicativo **CapCut Desktop** é separado do plugin e da conexão MCP. Instale-o pelo [site oficial](https://www.capcut.com/resource/capcut-for-windows) se ela quiser abrir ou ajustar o draft nesse aplicativo; a ausência do app, sozinha, não confirma falha do MCP. A disponibilidade pode variar por versão do ChatGPT, conta e região, conforme a [página oficial](https://www.capcut.com/tools/capcut-x-codex).
 
@@ -61,7 +59,7 @@ Em uma conversa nova, peça a rota local e indique os caminhos. Exemplo:
 
 > Quero um Reels de 15 segundos no modo corte musical. Os brutos estão em `C:/Users/SeuUsuario/Videos/Projeto/Brutos` e a música em `C:/Users/SeuUsuario/Videos/Projeto/musica.mp3`. Mostre o plano e espere minha aprovação antes de renderizar o MP4 local.
 
-O plugin confirma o pedido e apresenta um plano. Só renderiza depois da aprovação. Se não acessar os arquivos ou um comando falhar, informa o bloqueio; não troca de rota nem substitui o script em silêncio.
+Confirme o pedido e apresente um plano. Renderize só depois da aprovação. Se não acessar os arquivos ou um comando falhar, informe o bloqueio; não troque de rota nem substitua o script em silêncio.
 
 ## Instalar no Claude Code (opcional)
 
@@ -75,10 +73,16 @@ Para a rota CapCut no Claude Code, há configuração adicional do MCP e das ski
 
 ## Limites
 
-- Usa os brutos do pedido; não busca stock nem gera imagens genéricas.
-- Não inventa texto, chamada para ação ou logo.
-- Preserva os originais. Aprovação, revisão final, exportação e publicação ficam com quem usa.
+- Use os brutos do pedido. Busque stock ou gere imagens com prompts detalhados só se o usuário pedir ou se for oportuno.
+- Não invente texto, chamada para ação nem logo: o usuário que instrui a edição fornece esse conteúdo.
+- Preserve os originais. Aprovação e revisão final ficam com o usuário. Exportar e publicar o vídeo também é responsabilidade dele: não pergunte sobre isso nem tente fazê-lo.
+
+Regras completas: [`montar-video/SKILL.md`](plugin/skills/montar-video/SKILL.md).
 
 ## Validação pendente
 
-O histórico registra testes no Windows para versões anteriores (rota local 0.5.0 e CapCut 0.4.2). Isso não confirma a instalação nem a execução da versão atual no PC da Vitória. A primeira validação deve confirmar o acesso ao CapCut e ao Drive na conversa e concluir um draft com arquivos indicados por ela.
+Valide a versão atual no computador do usuário. Os testes registrados no Windows cobrem só versões anteriores (rota local 0.5.0 e CapCut 0.4.2).
+
+1. Confirme na conversa o acesso ao CapCut e ao Drive.
+2. Peça ao usuário os arquivos do primeiro vídeo.
+3. Conclua um draft com esses arquivos.
