@@ -8,7 +8,7 @@ description: Planeja, monta e confere vídeos da Soma Digital. O fluxo principal
 Regras fixas:
 
 - Nunca publicar. Preservar os originais do Drive.
-- Usar só os brutos do job. Sem stock, mídia gerada ou imagem genérica. Os pacotes de efeitos da agência (pastas `sfx` e `visual` junto dos brutos) não são stock: o render os usa sozinho.
+- Usar os brutos do job. Buscar stock ou gerar imagens com prompts detalhados só se o usuário pedir ou se for oportuno. Os pacotes de efeitos da agência (pastas `sfx` e `visual` junto dos brutos) não são stock: o render os usa sozinho.
 - Na rota local, a receita é o padrão da agência: não mude `transicoes`, `sfx_nas_transicoes`, `lento` nem volumes sem pedido de quem usa. Use todos os brutos que servem; deixar um de fora só com motivo visto (tremido, repetido, fora do assunto), dito na entrega.
 - Respeitar o que já foi alterado no CapCut por quem usa: não sobrescrever; em dúvida, perguntar.
 - Na rota CapCut, não exportar o vídeo final a menos que peçam; entregar o draft editável e o link.
