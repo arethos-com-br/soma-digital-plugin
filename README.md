@@ -1,6 +1,6 @@
 # Soma Digital — plugin de edição
 
-Ajuda a planejar e montar vídeos sociais a partir dos brutos fornecidos ou referenciados pelo usuário. O fluxo principal entrega um **draft editável no CapCut**; o MP4 local fica disponível quando pedido. Feito pela [Arethos](https://github.com/arethos-com-br).
+Ajuda a planejar e montar vídeos sociais a partir dos brutos fornecidos ou referenciados pelo usuário. O fluxo entrega um **draft editável no CapCut**. Feito pela [Arethos](https://github.com/arethos-com-br).
 
 Os arquivos desta versão contêm instruções e scripts, sem vídeos, links de Drive ou dados pessoais de clientes.
 
@@ -8,8 +8,8 @@ Os arquivos desta versão contêm instruções e scripts, sem vídeos, links de 
 
 | Parte | Para que serve |
 |---|---|
-| `iniciar-video` | Localiza e examina brutos e referências; confirma cliente, pedido e arquivos. |
-| `montar-video` | Apresenta um plano e monta um draft no CapCut; pode renderizar MP4 local quando pedido. |
+| `iniciar-video` | Identifica o cliente, localiza e examina brutos e referências, pesquisa tendências e confirma a ficha. |
+| `montar-video` | Apresenta um plano e monta um draft no CapCut. |
 | `buscar-tendencias` | Traz até três tendências e anúncios do nicho, com fonte e data. |
 | `montar-video/references/` | Modos de edição, requisitos por ambiente e repertório da Soma. |
 | `montar-video/receitas/` e `scripts/video_local.py` | Receitas de edição e render local com FFmpeg. |
